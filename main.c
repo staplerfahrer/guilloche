@@ -17,7 +17,7 @@ struct Pixel {
 // https://stackoverflow.com/questions/22945647/why-does-a-large-local
 // -array-crash-my-program-but-a-global-one-doesnt
 BDEPTH image[WIDTH * HEIGHT * CHANNELS];
-BDEPTH brush[BRUSHSIZE * BRUSHSIZE];
+BDEPTH brush[BRUSHSIZE * BRUSHSIZE * CHANNELS];
 
 void getImage(char *name, BDEPTH *img, size_t size)
 {
@@ -80,7 +80,7 @@ void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 int main() {
 	size_t size = (size_t) sizeof(image);
 	getImage("1024x1024x16b copy.raw", image, size);
-	printf("ok\n");
+	
 	size = (size_t) sizeof(brush);
 	getImage("brush.raw", brush, size);
 
@@ -103,7 +103,9 @@ int main() {
 	p->b = 0;
 	setPixel(image, 1, 1, p);
 
-	paint(image, brush, 15, 15);
+	//paint(image, brush, 15, 15);
+	getPixel(brush, 1, 1, p);
+	setPixel(image, 1, 1, p);
 
 	size = (size_t) sizeof(image);
 	setImage("out.raw", image, size);
