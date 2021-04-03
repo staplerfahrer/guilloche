@@ -1,10 +1,12 @@
 #include <stdio.h>
+#include <math.h>
 
 #define WIDTH 1024
 #define HEIGHT 1024
 #define CHANNELS 3
 #define BDEPTH unsigned short
 #define BRUSHSIZE 31
+#define PI 3.141592653589793
 
 struct Pixel {
 	BDEPTH r;
@@ -23,26 +25,16 @@ void getImage(char *name, BDEPTH *img, size_t size)
 {
 	FILE *ptr;
 	ptr = fopen(name, "rb");  // r for read, b for binary
-	fread(img, size, 1, ptr); // read all bytes to our image
+	fread(img, size, 1, ptr);
 	fclose(ptr);
-	printf("read\n");
-	// int i;
-	// for (i = 0; i < size; i++)
-	// {
-	// 	printf("%d ", img[i]);
-	// }
-	printf("%d ", img[32*3]);
-	printf("%d ", img[32*3+1]);
-	printf("%d ", img[32*3+2]);
 }
 
 void setImage(char *name, BDEPTH *img, size_t size)
 {
 	FILE *ptr;
 	ptr = fopen(name, "wb");  // r for read, b for binary
-	fwrite(img, size, 1, ptr); // write all bytes to the file
+	fwrite(img, size, 1, ptr);
 	fclose(ptr);
-	printf("written\n");
 }
 
 void getPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
@@ -50,7 +42,6 @@ void getPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
 	p->r = img[(CHANNELS * w * y) + (CHANNELS * x)];
 	p->g = img[(CHANNELS * w * y) + (CHANNELS * x) + 1];
 	p->b = img[(CHANNELS * w * y) + (CHANNELS * x) + 2];
-	printf("RGB at %d, %d read: %d %d %d\n", x, y, p->r, p->g, p->b);
 }
 
 void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
@@ -58,12 +49,13 @@ void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
 	img[(CHANNELS * w * y) + (CHANNELS * x)] = p->r;
 	img[(CHANNELS * w * y) + (CHANNELS * x) + 1] = p->g;
 	img[(CHANNELS * w * y) + (CHANNELS * x) + 2] = p->b;
-	printf("RGB at %d, %d written: %d %d %d\n", x, y, p->r, p->g, p->b);
 }
 
 void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 {
-	int brushX, brushY, imageX, imageY;
+	BDEPTH brushX, brushY; 
+	int imageX, imageY;
+	struct Pixel *p;
 	for (brushY = 0; brushY < BRUSHSIZE; brushY++)
 	{
 		for (brushX = 0; brushX < BRUSHSIZE; brushX++)
@@ -76,24 +68,47 @@ void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 			if (imageY < 0) continue;
 			if (imageY >= HEIGHT) continue;
 
-			printf("brushX %d  brushY %d - ", brushX, brushY);
-			printf("imageX %d  imageY %d\n", imageX, imageY);
-			struct Pixel *p;
 			getPixel(brush, BRUSHSIZE, brushX, brushY, p);
 			setPixel(img, WIDTH, imageX, imageY, p);
 		}
 	}
 }
 
+void paintFloat(BDEPTH *img, BDEPTH *brush, float x, float y)
+{
+	BDEPTH halfX = (BDEPTH) (WIDTH / 2); // 512
+	BDEPTH halfY = (BDEPTH) (HEIGHT / 2);
+	BDEPTH pixelX = halfX + (BDEPTH) (x * (float) WIDTH / 2); // 512 + (1 * 1024 / 2) or 512 + (-1 * 1024 / 2)
+	BDEPTH pixelY = HEIGHT - (halfY + (BDEPTH) (y * (float) HEIGHT / 2));
+	paint(img, brush, pixelX, pixelY);
+}
+
 int main() {
-	getImage("1024x1024x16b copy.raw", image, sizeof(image));
+	size_t imgSize = sizeof(image);
+	size_t brsSize = sizeof(brush);
+	getImage("1024x1024x16b copy.raw", image, imgSize);
+	getImage("brush.raw", brush, brsSize);
 
-	getImage("brush.raw", brush, sizeof(brush));
+	// int i;
+	// for (i = 0; i < 100; i++)
+	// {
+	// 	paint(image, brush, i, 0);
+	// }
 
-	paint(image, brush, 15, 15);
-	struct Pixel *p;
+	// float angle;
+	// int steps = 10;
+	// for (angle = 0; angle <= (PI * 2); angle += (PI / steps))
+	// {
+	// 	printf("angle %f\n", angle);
+	// 	float x = (float) cos(angle);
+	// 	float y = (float) sin(angle);
+	// 	printf("cos: %5.5f\n", x);
+	// 	printf("sin: %5.5f\n", y);
+	// 	paintFloat(image, brush, x, y);
+	// }
 
-	setImage("out.raw", image, sizeof(image));
+	paintFloat(image, brush, 1.0, 1.0);
 
-	return 3;
+	setImage("out.raw", image, imgSize);
+	printf("done\n");
 }
