@@ -26,11 +26,14 @@ void getImage(char *name, BDEPTH *img, size_t size)
 	fread(img, size, 1, ptr); // read all bytes to our image
 	fclose(ptr);
 	printf("read\n");
-	int i;
-	for (i = 0; i < size; i++)
-	{
-		printf("%d ", img[i]);
-	}
+	// int i;
+	// for (i = 0; i < size; i++)
+	// {
+	// 	printf("%d ", img[i]);
+	// }
+	printf("%d ", img[32*3]);
+	printf("%d ", img[32*3+1]);
+	printf("%d ", img[32*3+2]);
 }
 
 void setImage(char *name, BDEPTH *img, size_t size)
@@ -42,19 +45,19 @@ void setImage(char *name, BDEPTH *img, size_t size)
 	printf("written\n");
 }
 
-void getPixel(BDEPTH *img, BDEPTH x, BDEPTH y, struct Pixel *p)
+void getPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
 {
-	p->r = img[(CHANNELS * WIDTH * y) + (CHANNELS * x)];
-	p->g = img[(CHANNELS * WIDTH * y) + (CHANNELS * x) + 1];
-	p->b = img[(CHANNELS * WIDTH * y) + (CHANNELS * x) + 2];
+	p->r = img[(CHANNELS * w * y) + (CHANNELS * x)];
+	p->g = img[(CHANNELS * w * y) + (CHANNELS * x) + 1];
+	p->b = img[(CHANNELS * w * y) + (CHANNELS * x) + 2];
 	printf("RGB at %d, %d read: %d %d %d\n", x, y, p->r, p->g, p->b);
 }
 
-void setPixel(BDEPTH *img, BDEPTH x, BDEPTH y, struct Pixel *p)
+void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
 {
-	img[(CHANNELS * WIDTH * y) + (CHANNELS * x)] = p->r;
-	img[(CHANNELS * WIDTH * y) + (CHANNELS * x) + 1] = p->g;
-	img[(CHANNELS * WIDTH * y) + (CHANNELS * x) + 2] = p->b;
+	img[(CHANNELS * w * y) + (CHANNELS * x)] = p->r;
+	img[(CHANNELS * w * y) + (CHANNELS * x) + 1] = p->g;
+	img[(CHANNELS * w * y) + (CHANNELS * x) + 2] = p->b;
 	printf("RGB at %d, %d written: %d %d %d\n", x, y, p->r, p->g, p->b);
 }
 
@@ -76,47 +79,21 @@ void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 			printf("brushX %d  brushY %d - ", brushX, brushY);
 			printf("imageX %d  imageY %d\n", imageX, imageY);
 			struct Pixel *p;
-			getPixel(brush, brushX, brushY, p);
-			setPixel(img, imageX, imageY, p);
+			getPixel(brush, BRUSHSIZE, brushX, brushY, p);
+			setPixel(img, WIDTH, imageX, imageY, p);
 		}
 	}
 }
 
 int main() {
-	size_t size = sizeof(image);
-	//getImage("1024x1024x16b copy.raw", image, size);
-	
-	size = sizeof(brush);
-	getImage("brush.raw", brush, size);
+	getImage("1024x1024x16b copy.raw", image, sizeof(image));
 
-	//printf("read %d bytes\n", sz_t);
-	// for (i = 0; i < WIDTH; i++)
-	// {
-	// 	printf("element: %d\n", image[i]);
-	// }
+	getImage("brush.raw", brush, sizeof(brush));
+
+	paint(image, brush, 15, 15);
 	struct Pixel *p;
-	getPixel(image, 9, 0, p);
 
-	getPixel(brush, BRUSHSIZE-1, 0, p);
-
-	p->r = 0;
-	p->g = 0;
-	p->b = 0;
-	setPixel(image, 0, 0, p);
-	p->r = 0;
-	p->g = 65535;
-	p->b = 0;
-	setPixel(image, 1, 1, p);
-
-	//paint(image, brush, 15, 15);
-	p->r = 0;
-	p->g = 0;
-	p->b = 0;
-	getPixel(brush, 1, 1, p);
-	setPixel(image, 1, 1, p);
-
-	size = (size_t) sizeof(image);
-	setImage("out.raw", image, size);
+	setImage("out.raw", image, sizeof(image));
 
 	return 3;
 }
