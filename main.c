@@ -26,6 +26,11 @@ void getImage(char *name, BDEPTH *img, size_t size)
 	fread(img, size, 1, ptr); // read all bytes to our image
 	fclose(ptr);
 	printf("read\n");
+	int i;
+	for (i = 0; i < size; i++)
+	{
+		printf("%d ", img[i]);
+	}
 }
 
 void setImage(char *name, BDEPTH *img, size_t size)
@@ -78,10 +83,10 @@ void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 }
 
 int main() {
-	size_t size = (size_t) sizeof(image);
-	getImage("1024x1024x16b copy.raw", image, size);
+	size_t size = sizeof(image);
+	//getImage("1024x1024x16b copy.raw", image, size);
 	
-	size = (size_t) sizeof(brush);
+	size = sizeof(brush);
 	getImage("brush.raw", brush, size);
 
 	//printf("read %d bytes\n", sz_t);
@@ -104,6 +109,9 @@ int main() {
 	setPixel(image, 1, 1, p);
 
 	//paint(image, brush, 15, 15);
+	p->r = 0;
+	p->g = 0;
+	p->b = 0;
 	getPixel(brush, 1, 1, p);
 	setPixel(image, 1, 1, p);
 
