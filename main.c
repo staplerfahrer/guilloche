@@ -16,8 +16,8 @@ struct Pixel {
 
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
-// https://stackoverflow.com/questions/22945647/why-does-a-large-local
-// -array-crash-my-program-but-a-global-one-doesnt
+// https://stackoverflow.com/questions/22945647/why-does-a-
+//		large-local-array-crash-my-program-but-a-global-one-doesnt
 BDEPTH image[WIDTH * HEIGHT * CHANNELS];
 BDEPTH brush[BRUSHSIZE * BRUSHSIZE * CHANNELS];
 
@@ -51,12 +51,18 @@ void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
 	img[(CHANNELS * w * y) + (CHANNELS * x) + 2] = p->b;
 }
 
+BDEPTH min(BDEPTH a, BDEPTH b)
+{
+	return a < b ? a : b;
+}
+
 void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 {
 	BDEPTH brushX, brushY; 
 	int imageX, imageY;
-	//struct Pixel *p;
-	struct Pixel p = {.r = 0, .g = 0, .b = 0};
+	struct Pixel pImage = {.r = 0, .g = 0, .b = 0};
+	struct Pixel pBrush = {.r = 0, .g = 0, .b = 0};
+	struct Pixel pFinal = {.r = 0, .g = 0, .b = 0};
 	for (brushY = 0; brushY < BRUSHSIZE; brushY++)
 	{
 		for (brushX = 0; brushX < BRUSHSIZE; brushX++)
@@ -69,8 +75,12 @@ void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 			if (imageY < 0) continue;
 			if (imageY >= HEIGHT) continue;
 
-			getPixel(brush, BRUSHSIZE, brushX, brushY, &p);
-			setPixel(img, WIDTH, imageX, imageY, &p);
+			getPixel(brush, BRUSHSIZE, brushX, brushY, &pBrush);
+			getPixel(img, WIDTH, imageX, imageY, &pImage);
+			pFinal.r = min(pBrush.r, pImage.r);
+			pFinal.g = min(pBrush.g, pImage.g);
+			pFinal.b = min(pBrush.b, pImage.b);
+			setPixel(img, WIDTH, imageX, imageY, &pFinal);
 		}
 	}
 }
@@ -89,7 +99,7 @@ int main()
 	size_t imgSize = sizeof(image);
 	size_t brsSize = sizeof(brush);
 	getImage("1024x1024x16b copy.raw", image, imgSize);
-	getImage("brush.raw", brush, brsSize);
+	getImage("hardGradient.raw", brush, brsSize);
 
 	int i;
 	int steps = 1000;
