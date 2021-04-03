@@ -55,7 +55,8 @@ void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 {
 	BDEPTH brushX, brushY; 
 	int imageX, imageY;
-	struct Pixel *p;
+	//struct Pixel *p;
+	struct Pixel p = {.r = 0, .g = 0, .b = 0};
 	for (brushY = 0; brushY < BRUSHSIZE; brushY++)
 	{
 		for (brushX = 0; brushX < BRUSHSIZE; brushX++)
@@ -68,8 +69,8 @@ void paint(BDEPTH *img, BDEPTH *brush, BDEPTH x, BDEPTH y)
 			if (imageY < 0) continue;
 			if (imageY >= HEIGHT) continue;
 
-			getPixel(brush, BRUSHSIZE, brushX, brushY, p);
-			setPixel(img, WIDTH, imageX, imageY, p);
+			getPixel(brush, BRUSHSIZE, brushX, brushY, &p);
+			setPixel(img, WIDTH, imageX, imageY, &p);
 		}
 	}
 }
@@ -78,36 +79,31 @@ void paintFloat(BDEPTH *img, BDEPTH *brush, float x, float y)
 {
 	BDEPTH halfX = (BDEPTH) (WIDTH / 2); // 512
 	BDEPTH halfY = (BDEPTH) (HEIGHT / 2);
-	BDEPTH pixelX = halfX + (BDEPTH) (x * (float) WIDTH / 2); // 512 + (1 * 1024 / 2) or 512 + (-1 * 1024 / 2)
-	BDEPTH pixelY = HEIGHT - (halfY + (BDEPTH) (y * (float) HEIGHT / 2));
-	paint(img, brush, pixelX, pixelY);
+	BDEPTH imageX = halfX + (BDEPTH) (x * (float) WIDTH / 2); // 512 + (1 * 1024 / 2) or 512 + (-1 * 1024 / 2)
+	BDEPTH imageY = HEIGHT - (halfY + (BDEPTH) (y * (float) HEIGHT / 2));
+	paint(img, brush, imageX, imageY);
 }
 
-int main() {
+int main() 
+{
 	size_t imgSize = sizeof(image);
 	size_t brsSize = sizeof(brush);
 	getImage("1024x1024x16b copy.raw", image, imgSize);
 	getImage("brush.raw", brush, brsSize);
 
-	// int i;
-	// for (i = 0; i < 100; i++)
-	// {
-	// 	paint(image, brush, i, 0);
-	// }
-
-	// float angle;
-	// int steps = 10;
-	// for (angle = 0; angle <= (PI * 2); angle += (PI / steps))
-	// {
-	// 	printf("angle %f\n", angle);
-	// 	float x = (float) cos(angle);
-	// 	float y = (float) sin(angle);
-	// 	printf("cos: %5.5f\n", x);
-	// 	printf("sin: %5.5f\n", y);
-	// 	paintFloat(image, brush, x, y);
-	// }
-
-	paintFloat(image, brush, 1.0, 1.0);
+	int i;
+	int steps = 1000;
+	double angle;
+	double twoPi = PI * 2;
+	double step = twoPi / steps;
+	float loopX, loopY;
+	for (i = 0; i < steps; i++)
+	{
+		angle = twoPi / steps * i;
+		loopX = (float) cos(angle);
+		loopY = (float) sin(angle);
+		paintFloat(image, brush, loopX, loopY);
+	}
 
 	setImage("out.raw", image, imgSize);
 	printf("done\n");
