@@ -1,34 +1,37 @@
 #include <stdio.h>
 #include <math.h>
 
-#define WIDTH 1024
-#define HEIGHT 1024
-#define CHANNELS 3
+#define WIDTH 8192
+#define HEIGHT 8192
 #define BDEPTH unsigned short
-#define TOOLSIZE 31
+#define TOOLSIZE 255
 #define PI 3.1415926535897932384626433832795
 #define TWOPI 6.283185307179586476925286766559
-
-struct Pixel {
-	BDEPTH r;
-	BDEPTH g;
-	BDEPTH b;
-};
 
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
 // https://stackoverflow.com/questions/22945647/why-does-a-
 //		large-local-array-crash-my-program-but-a-global-one-doesnt
-char header[0x5310];
-char footer[0x2D];
-long int footerAddress = 0x605310;
-BDEPTH image[WIDTH * HEIGHT * CHANNELS];
-BDEPTH tool[TOOLSIZE * TOOLSIZE * CHANNELS];
+char imageHeader[0x449A];
+char imageFooter[0x2F];
+long int imageFooterAddress = 0x800449A;
+BDEPTH image[WIDTH * HEIGHT];
+BDEPTH tool[TOOLSIZE * TOOLSIZE];
 
-void load(char *name, BDEPTH *img, size_t size)
+void blank(BDEPTH *img, BDEPTH w, BDEPTH h)
+{
+	unsigned long i;
+	for (i = 0; i < w * h; i++)
+	{
+		img[i] = -1;
+	}
+}
+
+void load(char *name, unsigned long headerSize, BDEPTH *img, size_t size)
 {
 	FILE *ptr;
 	ptr = fopen(name, "rb");
+	fseek(ptr, headerSize, SEEK_SET);
 	fread(img, size, 1, ptr);
 	fclose(ptr);
 }
@@ -36,31 +39,27 @@ void load(char *name, BDEPTH *img, size_t size)
 void save(char *name, BDEPTH *img, size_t size)
 {
 	FILE *ptr;
-	ptr = fopen("1024x1024x16b.tif", "rb");
-	fread(header, sizeof(header), 1, ptr);
-	fseek(ptr, footerAddress, SEEK_SET);
-	fread(footer, sizeof(footer), 1, ptr);
+	ptr = fopen("8kx8kx1x16b.tif", "rb");
+	fread(imageHeader, sizeof(imageHeader), 1, ptr);
+	fseek(ptr, imageFooterAddress, SEEK_SET);
+	fread(imageFooter, sizeof(imageFooter), 1, ptr);
 	fclose(ptr);
 
 	ptr = fopen(name, "wb");
-	fwrite(header, sizeof(header), 1, ptr);
+	fwrite(imageHeader, sizeof(imageHeader), 1, ptr);
 	fwrite(img, size, 1, ptr);
-	fwrite(footer, sizeof(footer), 1, ptr);
+	fwrite(imageFooter, sizeof(imageFooter), 1, ptr);
 	fclose(ptr);
 }
 
-void getPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
+BDEPTH getPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y)
 {
-	p->r = img[(CHANNELS * w * y) + (CHANNELS * x)];
-	p->g = img[(CHANNELS * w * y) + (CHANNELS * x) + 1];
-	p->b = img[(CHANNELS * w * y) + (CHANNELS * x) + 2];
+	return img[w * y + x];
 }
 
-void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
+void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, BDEPTH p)
 {
-	img[(CHANNELS * w * y) + (CHANNELS * x)] = p->r;
-	img[(CHANNELS * w * y) + (CHANNELS * x) + 1] = p->g;
-	img[(CHANNELS * w * y) + (CHANNELS * x) + 2] = p->b;
+	img[w * y + x] = p;
 }
 
 BDEPTH min(unsigned int a, unsigned int b)
@@ -81,9 +80,9 @@ void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 {
 	BDEPTH toolX, toolY; 
 	int imageX, imageY;
-	struct Pixel pImage = {.r = 0, .g = 0, .b = 0};
-	struct Pixel pTool = {.r = 0, .g = 0, .b = 0};
-	struct Pixel pFinal = {.r = 0, .g = 0, .b = 0};
+	BDEPTH pImage = 0;
+	BDEPTH pTool = 0;
+	BDEPTH pFinal = 0;
 	for (toolY = 0; toolY < TOOLSIZE; toolY++)
 	{
 		for (toolX = 0; toolX < TOOLSIZE; toolX++)
@@ -96,12 +95,10 @@ void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 			if (imageY < 0) continue;
 			if (imageY >= HEIGHT) continue;
 
-			getPixel(tool, TOOLSIZE, toolX, toolY, &pTool);
-			getPixel(img, WIDTH, imageX, imageY, &pImage);
-			pFinal.r = (BDEPTH) min(pTool.r + depth, pImage.r);
-			pFinal.g = (BDEPTH) min(pTool.g + depth, pImage.g);
-			pFinal.b = (BDEPTH) min(pTool.b + depth, pImage.b);
-			setPixel(img, WIDTH, imageX, imageY, &pFinal);
+			pTool = getPixel(tool, TOOLSIZE, toolX, toolY);
+			pImage = getPixel(img, WIDTH, imageX, imageY);
+			pFinal = (BDEPTH) min(pTool + depth, pImage);
+			setPixel(img, WIDTH, imageX, imageY, pFinal);
 		}
 	}
 }
@@ -118,10 +115,8 @@ void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
 
 int main() 
 {
-	size_t imgSize = sizeof(image);
-	size_t brsSize = sizeof(tool);
-	load("1024x1024x16b.raw", image, imgSize);
-	load("cone.raw", tool, brsSize);
+	blank(image, WIDTH, HEIGHT);
+	load("cone255.tif", 0x4768, tool, sizeof(tool));
 
 	double wheel1;
 	double wheel1Size;
@@ -129,23 +124,12 @@ int main()
 	int wheel1Teeth;
 	double wheel1Tooth;
 
-	// wheel1Size = 0.9;
-	// oversampling = 1;
-	// wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
-	// wheel1Tooth = TWOPI / wheel1Teeth;
-	// for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
-	// {
-	// 	cutFloat(image, tool, 
-	// 			wheel1Size*cos(wheel1), 
-	// 			wheel1Size*sin(wheel1), 
-	// 			7.0/8.0+cos(wheel1*24)/8.0);
-	// }
-
 	int wheelCount;
 	for (wheelCount = 1; wheelCount <= 32; wheelCount++)
 	{
+		printf("wheel %d... ", wheelCount);
 		wheel1Size = 1.0 / 32 * wheelCount;
-		oversampling = 1;
+		oversampling = 0.1;
 		wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
 		wheel1Tooth = TWOPI / wheel1Teeth;
 		for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
@@ -157,6 +141,6 @@ int main()
 		}
 	}
 
-	save("out.tif", image, imgSize);
+	save("out.tif", image, sizeof(image));
 	printf("done\n");
 }
