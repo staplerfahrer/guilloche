@@ -6,7 +6,8 @@
 #define CHANNELS 3
 #define BDEPTH unsigned short
 #define TOOLSIZE 31
-#define PI 3.141592653589793
+#define PI 3.1415926535897932384626433832795
+#define TWOPI 6.283185307179586476925286766559
 
 struct Pixel {
 	BDEPTH r;
@@ -27,7 +28,7 @@ BDEPTH tool[TOOLSIZE * TOOLSIZE * CHANNELS];
 void load(char *name, BDEPTH *img, size_t size)
 {
 	FILE *ptr;
-	ptr = fopen(name, "rb");  // r for read, b for binary
+	ptr = fopen(name, "rb");
 	fread(img, size, 1, ptr);
 	fclose(ptr);
 }
@@ -35,13 +36,13 @@ void load(char *name, BDEPTH *img, size_t size)
 void save(char *name, BDEPTH *img, size_t size)
 {
 	FILE *ptr;
-	ptr = fopen("1024x1024x16b.tif", "rb");  // r for read, b for binary
+	ptr = fopen("1024x1024x16b.tif", "rb");
 	fread(header, sizeof(header), 1, ptr);
 	fseek(ptr, footerAddress, SEEK_SET);
 	fread(footer, sizeof(footer), 1, ptr);
 	fclose(ptr);
 
-	ptr = fopen(name, "wb");  // w for write, b for binary
+	ptr = fopen(name, "wb");
 	fwrite(header, sizeof(header), 1, ptr);
 	fwrite(img, size, 1, ptr);
 	fwrite(footer, sizeof(footer), 1, ptr);
@@ -65,6 +66,15 @@ void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, struct Pixel *p)
 BDEPTH min(unsigned int a, unsigned int b)
 {
 	return a < b ? a : b;
+}
+
+float limit(float a)
+{
+	return a < 0 
+			? 0
+			: a > 1 
+				? 1
+				: a;
 }
 
 void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
@@ -96,13 +106,14 @@ void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 	}
 }
 
-void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, BDEPTH depth)
+void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
 {
-	BDEPTH halfX = (BDEPTH) (WIDTH / 2); // 512
+	BDEPTH halfX = (BDEPTH) (WIDTH / 2);
 	BDEPTH halfY = (BDEPTH) (HEIGHT / 2);
-	BDEPTH imageX = halfX + (BDEPTH) (x * (float) WIDTH / 2); // 512 + (1 * 1024 / 2) or 512 + (-1 * 1024 / 2)
+	BDEPTH imageX = halfX + (BDEPTH) (x * (float) WIDTH / 2);
 	BDEPTH imageY = HEIGHT - (halfY + (BDEPTH) (y * (float) HEIGHT / 2));
-	cut(img, tool, imageX, imageY, depth);
+	BDEPTH depthInt = 0xFFFF - (limit(depth) * 0xFFFF);
+	cut(img, tool, imageX, imageY, depthInt);
 }
 
 int main() 
@@ -112,19 +123,21 @@ int main()
 	load("1024x1024x16b.raw", image, imgSize);
 	load("hardGradient.raw", tool, brsSize);
 
-	int i;
-	int steps = 10000;
-	double angle;
-	double twoPi = PI * 2;
-	double step = twoPi / steps;
-	float loopX, loopY;
-	BDEPTH depth = 32757;
-	for (i = 0; i < steps; i++)
+	double wheel1;
+	double wheel1Size = 0.3;
+	int oversampling = 1;
+	int wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
+	double wheel1Tooth = TWOPI / wheel1Teeth;
+	for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
 	{
-		angle = twoPi / steps * i;
-		loopX = (float) cos(angle);
-		loopY = (float) sin(angle);
-		cutFloat(image, tool, loopX, loopY, depth);
+		cutFloat(image, tool, 
+				wheel1Size*cos(wheel1), 
+				wheel1Size*sin(wheel1), 
+				7.0/8.0+cos(wheel1*24)/8.0);
+		// cutFloat(image, tool, 
+		// 		wheel1Size*cos(wheel1+PI/), 
+		// 		wheel1Size*sin(wheel1), 
+		// 		7.0/8.0+cos(wheel1*24)/8.0);
 	}
 
 	save("out.tif", image, imgSize);
