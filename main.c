@@ -121,23 +121,40 @@ int main()
 	size_t imgSize = sizeof(image);
 	size_t brsSize = sizeof(tool);
 	load("1024x1024x16b.raw", image, imgSize);
-	load("hardGradient.raw", tool, brsSize);
+	load("cone.raw", tool, brsSize);
 
 	double wheel1;
-	double wheel1Size = 0.3;
-	int oversampling = 1;
-	int wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
-	double wheel1Tooth = TWOPI / wheel1Teeth;
-	for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
+	double wheel1Size;
+	double oversampling;
+	int wheel1Teeth;
+	double wheel1Tooth;
+
+	// wheel1Size = 0.9;
+	// oversampling = 1;
+	// wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
+	// wheel1Tooth = TWOPI / wheel1Teeth;
+	// for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
+	// {
+	// 	cutFloat(image, tool, 
+	// 			wheel1Size*cos(wheel1), 
+	// 			wheel1Size*sin(wheel1), 
+	// 			7.0/8.0+cos(wheel1*24)/8.0);
+	// }
+
+	int wheelCount;
+	for (wheelCount = 1; wheelCount <= 32; wheelCount++)
 	{
-		cutFloat(image, tool, 
-				wheel1Size*cos(wheel1), 
-				wheel1Size*sin(wheel1), 
-				7.0/8.0+cos(wheel1*24)/8.0);
-		// cutFloat(image, tool, 
-		// 		wheel1Size*cos(wheel1+PI/), 
-		// 		wheel1Size*sin(wheel1), 
-		// 		7.0/8.0+cos(wheel1*24)/8.0);
+		wheel1Size = 1.0 / 32 * wheelCount;
+		oversampling = 1;
+		wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
+		wheel1Tooth = TWOPI / wheel1Teeth;
+		for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
+		{
+			cutFloat(image, tool, 
+					wheel1Size*cos(wheel1), 
+					wheel1Size*sin(wheel1), 
+					2.0/8+cos(wheel1*24)/8);
+		}
 	}
 
 	save("out.tif", image, imgSize);
