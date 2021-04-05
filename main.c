@@ -150,12 +150,14 @@ int main()
 	blank(image, WIDTH, HEIGHT);
 	load("cone255.tif", 0x4768, tool, sizeof(tool));
 
-	int cutCounter = 0;
 	float wheel1;
 	float wheel1Size;
 	float oversampling;
 	int wheel1Teeth;
+	int cutCounter = 0;
 	float wheel1Tooth;
+	float wheelCount = 32;
+	float waves = 24;
 	float wheelSizeMax = 0.9;
 	float spin;
 	int wheelNumber;
@@ -185,8 +187,6 @@ int main()
 	// 	if (!running) break;
 	// }
 
-	float wheelCount = 32;
-	float waves = 24;
 
 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
