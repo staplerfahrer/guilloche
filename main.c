@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <windows.h> 
 
 #define WIDTH 8192
 #define HEIGHT 8192
@@ -7,6 +8,8 @@
 #define TOOLSIZE 255
 #define PI 3.1415926535897932384626433832795
 #define TWOPI 6.283185307179586476925286766559
+
+BOOL running = TRUE;
 
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
@@ -62,7 +65,7 @@ void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, BDEPTH p)
 	img[w * y + x] = p;
 }
 
-BDEPTH min(unsigned int a, unsigned int b)
+BDEPTH minimum(unsigned int a, unsigned int b)
 {
 	return a < b ? a : b;
 }
@@ -74,6 +77,11 @@ float limit(float a)
 			: a > 1 
 				? 1
 				: a;
+}
+
+float square(float a)
+{
+	return a * a;
 }
 
 void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
@@ -97,7 +105,7 @@ void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 
 			pTool = getPixel(tool, TOOLSIZE, toolX, toolY);
 			pImage = getPixel(img, WIDTH, imageX, imageY);
-			pFinal = (BDEPTH) min(pTool + depth, pImage);
+			pFinal = (BDEPTH) minimum(pTool + depth, pImage);
 			setPixel(img, WIDTH, imageX, imageY, pFinal);
 		}
 	}
@@ -113,34 +121,96 @@ void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
 	cut(img, tool, imageX, imageY, depthInt);
 }
 
+void finish()
+{
+	printf("saving...\n");
+	save("out.tif", image, sizeof(image));
+	printf("done\n");
+}
+
+BOOL WINAPI consoleHandler(DWORD signal) 
+{
+	printf("%d", signal);
+    if (signal == CTRL_C_EVENT)
+	{
+        printf("\nCtrl-C handled\n");
+		running = FALSE;
+	}
+    return TRUE;
+}
+
 int main() 
 {
+    if (!SetConsoleCtrlHandler(consoleHandler, TRUE)) 
+	{
+        printf("\nERROR: Could not set control handler\n"); 
+        return 1;
+    }
+
 	blank(image, WIDTH, HEIGHT);
 	load("cone255.tif", 0x4768, tool, sizeof(tool));
 
-	double wheel1;
-	double wheel1Size;
-	double oversampling;
+	int cutCounter = 0;
+	float wheel1;
+	float wheel1Size;
+	float oversampling;
 	int wheel1Teeth;
-	double wheel1Tooth;
+	float wheel1Tooth;
+	float wheelSizeMax = 0.9;
+	float spin;
+	int wheelNumber;
 
-	int wheelCount;
-	for (wheelCount = 1; wheelCount <= 32; wheelCount++)
+	// // g spiral.tif
+	// for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
+	// {
+	// 	printf("wheel %d...", wheelNumber);
+	// 	oversampling = 0.1;
+	// 	wheel1Size = 1.0 / wheelCount * wheelNumber;
+	// 	wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
+	// 	wheel1Tooth = TWOPI / wheel1Teeth;
+	// 	spin = 0-wheelNumber/5.0;
+	// 	for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
+	// 	{
+	// 		cutCounter++;
+	// 		if (cutCounter % 1000 == 0) printf(".");
+	// 		cutFloat(image, tool, 
+	// 				wheelSizeMax*wheel1Size*cos(wheel1), 
+	// 				wheelSizeMax*wheel1Size*sin(wheel1), 
+	// 				((7.0/8)
+	// 					+(1.0/8)*cos((wheel1+spin)*waves))
+	// 					*wheelNumber/wheelCount);
+	// 		if (!running) break;
+	// 	}
+	// 	printf(" ");
+	// 	if (!running) break;
+	// }
+
+	float wheelCount = 32;
+	float waves = 24;
+
+	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
-		printf("wheel %d... ", wheelCount);
-		wheel1Size = 1.0 / 32 * wheelCount;
+		printf("wheel %d...", wheelNumber);
 		oversampling = 0.1;
+		wheel1Size = 1.0 / wheelCount * wheelNumber;
 		wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
 		wheel1Tooth = TWOPI / wheel1Teeth;
+		spin = 0-wheelNumber/5.0;
 		for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
 		{
+			cutCounter++;
+			if (cutCounter % 1000 == 0) printf(".");
 			cutFloat(image, tool, 
-					wheel1Size*cos(wheel1), 
-					wheel1Size*sin(wheel1), 
-					2.0/8+cos(wheel1*24)/8);
+					wheelSizeMax*wheel1Size*cos(wheel1), 
+					wheelSizeMax*wheel1Size*sin(wheel1), 
+					((7.0/8)
+						+(1.0/8)*cos((wheel1+spin)*waves))
+						*wheelNumber/wheelCount);
+			if (!running) break;
 		}
+		printf(" ");
+		if (!running) break;
 	}
 
-	save("out.tif", image, sizeof(image));
-	printf("done\n");
+	finish();
 }
