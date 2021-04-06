@@ -139,6 +139,84 @@ BOOL WINAPI consoleHandler(DWORD signal)
     return TRUE;
 }
 
+void concentricWobbleSpiral()
+{
+	unsigned long cutCounter = 0;
+	float wheel1Rotation;
+	float wheel1Size;
+	float oversampling;
+	int wheel1Teeth;
+	float wheel1Tooth;
+	float wheel1SizeMax = 0.9;
+	float wheelCount;
+	float waves;
+	float spiral;
+	int wheelNumber;
+
+	wheelCount = 32;
+	waves = 24;
+	oversampling = 0.1;
+	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
+	{
+		printf("wheel %d...", wheelNumber);
+		wheel1Size = 1.0 / wheelCount * wheelNumber;
+		wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
+		wheel1Tooth = TWOPI / wheel1Teeth;
+		spiral = 0-wheelNumber/5.0;
+		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
+		{
+			cutCounter++;
+			if (cutCounter % 1000 == 0) printf(".");
+			cutFloat(image, tool, 
+					wheel1SizeMax*wheel1Size*cos(wheel1Rotation), 
+					wheel1SizeMax*wheel1Size*sin(wheel1Rotation), 
+					((7.0/8)
+						+(1.0/8)*cos((wheel1Rotation+spiral)*waves))
+						*wheelNumber/wheelCount);
+			if (!running) break;
+		}
+		printf(" ");
+		if (!running) break;
+	}
+}
+
+void sunburst()
+{
+	unsigned long cutCounter = 0;
+	float oversampling = 0.001;
+	float waves = 0;
+	float spiral = 5.0;
+	float wheel1Rotation;
+	float wheel1Size;
+	float wheel1SizeMax = 0.9;
+	int wheel1Teeth;
+	float wheel1Tooth;
+	float wheelCount = 1000;
+	int wheelNumber;
+	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
+	{
+		printf("wheel %d...", wheelNumber);
+		wheel1Size = wheel1SizeMax / wheelCount * wheelNumber;
+		wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
+		wheel1Tooth = TWOPI / wheel1Teeth;
+		float spiralAdd = 0-wheelNumber/spiral;
+		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
+		{
+			cutCounter++;
+			if (cutCounter % 1000 == 0) printf(".");
+			cutFloat(image, tool, 
+					wheel1Size*cos(wheel1Rotation+spiralAdd), 
+					wheel1Size*sin(wheel1Rotation+spiralAdd), 
+					((7.0/8)
+						+(1.0/8)*cos((wheel1Rotation)*waves))
+						*wheelNumber/wheelCount);
+			if (!running) break;
+		}
+		printf(" ");
+		if (!running) break;
+	}
+}
+
 int main() 
 {
     if (!SetConsoleCtrlHandler(consoleHandler, TRUE)) 
@@ -150,67 +228,9 @@ int main()
 	blank(image, WIDTH, HEIGHT);
 	load("cone255.tif", 0x4768, tool, sizeof(tool));
 
-	float wheel1;
-	float wheel1Size;
-	float oversampling;
-	int wheel1Teeth;
-	int cutCounter = 0;
-	float wheel1Tooth;
-	float wheelCount = 32;
-	float waves = 24;
-	float wheelSizeMax = 0.9;
-	float spin;
-	int wheelNumber;
+	//concentricWobbleSpiral();
 
-	// // g spiral.tif
-	// for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
-	// {
-	// 	printf("wheel %d...", wheelNumber);
-	// 	oversampling = 0.1;
-	// 	wheel1Size = 1.0 / wheelCount * wheelNumber;
-	// 	wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
-	// 	wheel1Tooth = TWOPI / wheel1Teeth;
-	// 	spin = 0-wheelNumber/5.0;
-	// 	for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
-	// 	{
-	// 		cutCounter++;
-	// 		if (cutCounter % 1000 == 0) printf(".");
-	// 		cutFloat(image, tool, 
-	// 				wheelSizeMax*wheel1Size*cos(wheel1), 
-	// 				wheelSizeMax*wheel1Size*sin(wheel1), 
-	// 				((7.0/8)
-	// 					+(1.0/8)*cos((wheel1+spin)*waves))
-	// 					*wheelNumber/wheelCount);
-	// 		if (!running) break;
-	// 	}
-	// 	printf(" ");
-	// 	if (!running) break;
-	// }
-
-
-	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
-	{
-		printf("wheel %d...", wheelNumber);
-		oversampling = 0.1;
-		wheel1Size = 1.0 / wheelCount * wheelNumber;
-		wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
-		wheel1Tooth = TWOPI / wheel1Teeth;
-		spin = 0-wheelNumber/5.0;
-		for (wheel1 = 0; wheel1 < TWOPI; wheel1 += wheel1Tooth)
-		{
-			cutCounter++;
-			if (cutCounter % 1000 == 0) printf(".");
-			cutFloat(image, tool, 
-					wheelSizeMax*wheel1Size*cos(wheel1), 
-					wheelSizeMax*wheel1Size*sin(wheel1), 
-					((7.0/8)
-						+(1.0/8)*cos((wheel1+spin)*waves))
-						*wheelNumber/wheelCount);
-			if (!running) break;
-		}
-		printf(" ");
-		if (!running) break;
-	}
+	sunburst();
 
 	finish();
 }
