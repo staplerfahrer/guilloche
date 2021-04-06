@@ -144,7 +144,7 @@ void concentricWobbleSpiral()
 	unsigned long cutCounter = 0;
 	float wheel1Rotation;
 	float wheel1Size;
-	float oversampling;
+	float teethDensityRelative;
 	int wheel1Teeth;
 	float wheel1Tooth;
 	float wheel1SizeMax = 0.9;
@@ -155,12 +155,12 @@ void concentricWobbleSpiral()
 
 	wheelCount = 32;
 	waves = 24;
-	oversampling = 0.1;
+	teethDensityRelative = 0.1;
 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
 		printf("wheel %d...", wheelNumber);
 		wheel1Size = 1.0 / wheelCount * wheelNumber;
-		wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
+		wheel1Teeth = PI * WIDTH * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
 		spiral = 0-wheelNumber/5.0;
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
@@ -183,23 +183,28 @@ void concentricWobbleSpiral()
 void sunburst()
 {
 	unsigned long cutCounter = 0;
-	float oversampling = 0.001;
 	float waves = 0;
-	float spiral = 5.0;
+	float spiral = 0;
+	float depthA = 0.0/8; // depth = ax + b
+	float depthB = 2.0/8;
 	float wheel1Rotation;
 	float wheel1Size;
 	float wheel1SizeMax = 0.9;
 	int wheel1Teeth;
 	float wheel1Tooth;
-	float wheelCount = 1000;
+	float wheelCount = 100;
+	float teethDensityRelative = 0.2;
+	int teethCountFixed = 0;
 	int wheelNumber;
 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
 		printf("wheel %d...", wheelNumber);
 		wheel1Size = wheel1SizeMax / wheelCount * wheelNumber;
-		wheel1Teeth = PI * WIDTH * wheel1Size * oversampling;
+		wheel1Teeth = teethCountFixed > 0
+			? teethCountFixed
+			: PI * WIDTH * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
-		float spiralAdd = 0-wheelNumber/spiral;
+		float spiralAdd = 0-wheelNumber/wheelCount*spiral*TWOPI;
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
 		{
 			cutCounter++;
@@ -207,9 +212,7 @@ void sunburst()
 			cutFloat(image, tool, 
 					wheel1Size*cos(wheel1Rotation+spiralAdd), 
 					wheel1Size*sin(wheel1Rotation+spiralAdd), 
-					((7.0/8)
-						+(1.0/8)*cos((wheel1Rotation)*waves))
-						*wheelNumber/wheelCount);
+					depthA*(0)+depthB);
 			if (!running) break;
 		}
 		printf(" ");
