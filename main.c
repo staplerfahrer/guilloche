@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-#include <windows.h> 
+#include <windows.h>
 
 #define WIDTH 8192
 #define HEIGHT 8192
@@ -8,8 +8,7 @@
 #define TOOLSIZE 255
 #define PI 3.1415926535897932384626433832795
 #define TWOPI 6.283185307179586476925286766559
-
-BOOL running = TRUE;
+#define THREADCOUNT 1
 
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
@@ -20,6 +19,10 @@ char imageFooter[0x2F];
 long int imageFooterAddress = 0x800449A;
 BDEPTH image[WIDTH * HEIGHT];
 BDEPTH tool[TOOLSIZE * TOOLSIZE];
+
+BOOL running = TRUE;
+BOOL threads[THREADCOUNT];
+int threadNumber;
 
 void blank(BDEPTH *img, BDEPTH w, BDEPTH h)
 {
@@ -72,11 +75,7 @@ BDEPTH minimum(unsigned int a, unsigned int b)
 
 float limit(float a)
 {
-	return a < 0 
-			? 0
-			: a > 1 
-				? 1
-				: a;
+	return a < 0 ? 0 : a > 1 ? 1 : a;
 }
 
 float square(float a)
@@ -86,7 +85,7 @@ float square(float a)
 
 void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 {
-	BDEPTH toolX, toolY; 
+	BDEPTH toolX, toolY;
 	int imageX, imageY;
 	BDEPTH pImage = 0;
 	BDEPTH pTool = 0;
@@ -128,7 +127,7 @@ void finish()
 	printf("done\n");
 }
 
-BOOL WINAPI consoleHandler(DWORD signal) 
+BOOL WINAPI ctrlCHandler(DWORD signal)
 {
 	printf("%d", signal);
     if (signal == CTRL_C_EVENT)
@@ -167,9 +166,9 @@ void concentricWobbleSpiral()
 		{
 			cutCounter++;
 			if (cutCounter % 1000 == 0) printf(".");
-			cutFloat(image, tool, 
-					wheel1SizeMax*wheel1Size*cos(wheel1Rotation), 
-					wheel1SizeMax*wheel1Size*sin(wheel1Rotation), 
+			cutFloat(image, tool,
+					wheel1SizeMax*wheel1Size*cos(wheel1Rotation),
+					wheel1SizeMax*wheel1Size*sin(wheel1Rotation),
 					((7.0/8)
 						+(1.0/8)*cos((wheel1Rotation+spiral)*waves))
 						*wheelNumber/wheelCount);
@@ -192,7 +191,7 @@ void sunburst()
 	float wheel1SizeMax = 0.9;
 	int wheel1Teeth;
 	float wheel1Tooth;
-	float wheelCount = 100;
+	float wheelCount = 10;
 	float teethDensityRelative = 0.2;
 	int teethCountFixed = 0;
 	int wheelNumber;
@@ -209,9 +208,9 @@ void sunburst()
 		{
 			cutCounter++;
 			if (cutCounter % 1000 == 0) printf(".");
-			cutFloat(image, tool, 
-					wheel1Size*cos(wheel1Rotation+spiralAdd), 
-					wheel1Size*sin(wheel1Rotation+spiralAdd), 
+			cutFloat(image, tool,
+					wheel1Size*cos(wheel1Rotation+spiralAdd),
+					wheel1Size*sin(wheel1Rotation+spiralAdd),
 					depthA*(0)+depthB);
 			if (!running) break;
 		}
@@ -220,20 +219,57 @@ void sunburst()
 	}
 }
 
-int main() 
+DWORD WINAPI ThreadFunc(void *data)
 {
-    if (!SetConsoleCtrlHandler(consoleHandler, TRUE)) 
-	{
-        printf("\nERROR: Could not set control handler\n"); 
-        return 1;
-    }
+	// https://stackoverflow.com/questions/1981459/using-threads
+	//     -in-c-on-windows-simple-example
+	// Do stuff. This will be the first function called
+	// on the new thread. When this function returns,
+	// the thread goes away. See MSDN for more details.
+
+	int threadId = threadNumber;
+	threads[threadId] = TRUE;
+	printf("threadId = %d\n", threadId);
+	//concentricWobbleSpiral();
+	sunburst();
+
+	threads[threadId] = FALSE;
+	return 0;
+}
+
+int main()
+{
+	SetConsoleCtrlHandler(ctrlCHandler, TRUE);
 
 	blank(image, WIDTH, HEIGHT);
 	load("cone255.tif", 0x4768, tool, sizeof(tool));
 
-	//concentricWobbleSpiral();
+	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
+	{
+		HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
+		if (thread) 
+		{
+			while (!threads[threadNumber])
+			{
+				printf("waiting for thread %d...", threadNumber);
+				Sleep(0.1);
+			}
+			printf("thread %d started", threadNumber);
+		}
+	}
 
-	sunburst();
+	BOOL threadsActive = TRUE;
+	while (threadsActive)
+	{
+		Sleep(1000);
+		threadsActive = FALSE;
+		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
+		{
+			printf("(thread %d active: %d)\n", threadNumber, threads[threadNumber]);
+			threadsActive |= threads[threadNumber];
+		}
+		if (!running) break;
+	}
 
 	finish();
 }
