@@ -8,7 +8,7 @@
 #define TOOLSIZE 255
 #define PI 3.1415926535897932384626433832795
 #define TWOPI 6.283185307179586476925286766559
-#define THREADCOUNT 1
+#define THREADCOUNT 12
 
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
@@ -24,13 +24,9 @@ BOOL running = TRUE;
 BOOL threads[THREADCOUNT];
 int threadNumber;
 
-void blank(BDEPTH *img, BDEPTH w, BDEPTH h)
+void wipe(BDEPTH *img, unsigned long elements)
 {
-	unsigned long i;
-	for (i = 0; i < w * h; i++)
-	{
-		img[i] = -1;
-	}
+	for (unsigned long i = 0; i < elements; i++) img[i] = -1;
 }
 
 void load(char *name, unsigned long headerSize, BDEPTH *img, size_t size)
@@ -138,7 +134,7 @@ BOOL WINAPI ctrlCHandler(DWORD signal)
     return TRUE;
 }
 
-void concentricWobbleSpiral()
+void concentricWobbleSpiral(int threadId)
 {
 	unsigned long cutCounter = 0;
 	float wheel1Rotation;
@@ -179,7 +175,7 @@ void concentricWobbleSpiral()
 	}
 }
 
-void sunburst()
+void sunburst(int threadId)
 {
 	unsigned long cutCounter = 0;
 	float waves = 0;
@@ -191,7 +187,7 @@ void sunburst()
 	float wheel1SizeMax = 0.9;
 	int wheel1Teeth;
 	float wheel1Tooth;
-	float wheelCount = 10;
+	float wheelCount = 200;
 	float teethDensityRelative = 0.2;
 	int teethCountFixed = 0;
 	int wheelNumber;
@@ -207,6 +203,7 @@ void sunburst()
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
 		{
 			cutCounter++;
+			if (cutCounter % THREADCOUNT != threadId) continue;
 			if (cutCounter % 1000 == 0) printf(".");
 			cutFloat(image, tool,
 					wheel1Size*cos(wheel1Rotation+spiralAdd),
@@ -229,9 +226,8 @@ DWORD WINAPI ThreadFunc(void *data)
 
 	int threadId = threadNumber;
 	threads[threadId] = TRUE;
-	printf("threadId = %d\n", threadId);
-	//concentricWobbleSpiral();
-	sunburst();
+	//concentricWobbleSpiral(threadId);
+	sunburst(threadId);
 
 	threads[threadId] = FALSE;
 	return 0;
@@ -240,8 +236,7 @@ DWORD WINAPI ThreadFunc(void *data)
 int main()
 {
 	SetConsoleCtrlHandler(ctrlCHandler, TRUE);
-
-	blank(image, WIDTH, HEIGHT);
+	wipe(image, WIDTH * HEIGHT);
 	load("cone255.tif", 0x4768, tool, sizeof(tool));
 
 	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
@@ -251,10 +246,8 @@ int main()
 		{
 			while (!threads[threadNumber])
 			{
-				printf("waiting for thread %d...", threadNumber);
 				Sleep(0.1);
 			}
-			printf("thread %d started", threadNumber);
 		}
 	}
 
@@ -265,7 +258,6 @@ int main()
 		threadsActive = FALSE;
 		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 		{
-			printf("(thread %d active: %d)\n", threadNumber, threads[threadNumber]);
 			threadsActive |= threads[threadNumber];
 		}
 		if (!running) break;
