@@ -15,10 +15,11 @@
 // Alternatively, this:
 // https://stackoverflow.com/questions/22945647/why-does-a-
 //		large-local-array-crash-my-program-but-a-global-one-doesnt
-char imageHeader[0x449A];
-char imageFooter[0x2F];
-long int imageFooterAddress = 0x800449A;
+char imageHeader[0x449A]; // same 4k or 8k
+char imageFooter[46]; // 47 for 8k?
+long int imageFooterAddress = 0x200449A; // 200449A for 4k, 800449A for 8k
 BDEPTH image[WIDTH * HEIGHT];
+BDEPTH imageQtr[WIDTH * HEIGHT / 4];
 BDEPTH tool[TOOLSIZE * TOOLSIZE];
 
 BOOL running = TRUE;
@@ -43,7 +44,7 @@ void load(char *name, unsigned long headerSize, BDEPTH *img, size_t size)
 void save(char *name, BDEPTH *img, size_t size)
 {
 	FILE *ptr;
-	ptr = fopen("8kx8kx1x16b.tif", "rb");
+	ptr = fopen("4kx4kx1x16b.tif", "rb");
 	fread(imageHeader, sizeof(imageHeader), 1, ptr);
 	fseek(ptr, imageFooterAddress, SEEK_SET);
 	fread(imageFooter, sizeof(imageFooter), 1, ptr);
@@ -64,6 +65,25 @@ BDEPTH getPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y)
 void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, BDEPTH p)
 {
 	img[w * y + x] = p;
+}
+
+void resample(BDEPTH *img, BDEPTH *imgQtr)
+{
+	int qtrHeight = HEIGHT / 2;
+	int qtrWidth = WIDTH / 2;
+	BDEPTH p;
+	for (int y = 0; y < qtrHeight; y++)
+	{
+		for (int x = 0; x < qtrWidth; x++)
+		{
+			p = (getPixel(img, WIDTH, x * 2, y * 2)
+					+ getPixel(img, WIDTH, x * 2 + 1, y * 2)
+					+ getPixel(img, WIDTH, x * 2, y * 2 + 1)
+					+ getPixel(img, WIDTH, x * 2 + 1, y * 2 + 1))
+					/ 4;
+			imgQtr[qtrWidth * y + x] = p;
+		}
+	}
 }
 
 BDEPTH minimum(unsigned int a, unsigned int b)
@@ -116,8 +136,10 @@ void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
 
 void finish()
 {
+	printf("resampling...\n");
+	resample(image, imageQtr);
 	printf("saving...\n");
-	save("out.tif", image, sizeof(image));
+	save("out.tif", imageQtr, sizeof(imageQtr));
 	printf("done\n");
 }
 
