@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <windows.h>
+#include <time.h>
 
 #define WIDTH 8192
 #define HEIGHT 8192
@@ -23,6 +24,7 @@ BDEPTH tool[TOOLSIZE * TOOLSIZE];
 BOOL running = TRUE;
 BOOL threads[THREADCOUNT];
 int threadNumber;
+unsigned long pixelInteractions = 0;
 
 void wipe(BDEPTH *img, unsigned long elements)
 {
@@ -74,11 +76,6 @@ float limit(float a)
 	return a < 0 ? 0 : a > 1 ? 1 : a;
 }
 
-float square(float a)
-{
-	return a * a;
-}
-
 void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 {
 	BDEPTH toolX, toolY;
@@ -104,6 +101,7 @@ void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 			setPixel(img, WIDTH, imageX, imageY, pFinal);
 		}
 	}
+	pixelInteractions += pow(TOOLSIZE, 2) * 3;
 }
 
 void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
@@ -199,16 +197,63 @@ void sunburst(int threadId)
 			? teethCountFixed
 			: PI * WIDTH * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
-		float spiralAdd = 0-wheelNumber/wheelCount*spiral*TWOPI;
+		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
 		{
 			cutCounter++;
 			if (cutCounter % THREADCOUNT != threadId) continue;
 			if (cutCounter % 1000 == 0) printf(".");
 			cutFloat(image, tool,
-					wheel1Size*cos(wheel1Rotation+spiralAdd),
-					wheel1Size*sin(wheel1Rotation+spiralAdd),
+					wheel1Size*cos(wheel1Rotation+spiralTurn),
+					wheel1Size*sin(wheel1Rotation+spiralTurn),
 					depthA*(0)+depthB);
+			if (!running) break;
+		}
+		printf(" ");
+		if (!running) break;
+	}
+}
+
+void overlappingCircles(int threadId)
+{
+	unsigned long cutCounter = 0;
+	float waves = 0;
+	float spiral = 0;
+	float depthA = 7.0/8; // depth = ax
+	float depthB = 1.0/8; //         + b
+	float wheel1Rotation;
+	float wheel1Size;
+	float wheel1SizeMax = 0.9;
+	int wheel1Teeth;
+	float wheel1Tooth;
+	float wheelCount = 72;
+	float teethDensityRelative = 0.5;
+	int teethCountFixed = 0;
+	int wheelNumber;
+	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
+	{
+		printf("%d: wheel %d...", threadId, wheelNumber);
+		wheel1Size = 0.4; //wheel1SizeMax / wheelCount * wheelNumber;
+		wheel1Teeth = teethCountFixed > 0
+			? teethCountFixed
+			: PI * WIDTH * wheel1Size * teethDensityRelative;
+		wheel1Tooth = TWOPI / wheel1Teeth;
+		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
+		float wheelCenterOffset = 0.4;
+		float wheelCenterX = cos(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
+		float wheelCenterY = sin(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
+		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
+		{
+			cutCounter++;
+			if (cutCounter % THREADCOUNT != threadId) continue; // not this thread
+			if (cutCounter % 1000 == 0) printf(".");
+			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
+			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
+			float depthX = sqrt(pow(fabs(cutX),2)+pow(fabs(cutY),2));
+			cutFloat(image, tool,
+					cutX,
+					cutY,
+					depthA*depthX+depthB);
 			if (!running) break;
 		}
 		printf(" ");
@@ -227,7 +272,7 @@ DWORD WINAPI ThreadFunc(void *data)
 	int threadId = threadNumber;
 	threads[threadId] = TRUE;
 	//concentricWobbleSpiral(threadId);
-	sunburst(threadId);
+	overlappingCircles(threadId);
 
 	threads[threadId] = FALSE;
 	return 0;
@@ -238,6 +283,8 @@ int main()
 	SetConsoleCtrlHandler(ctrlCHandler, TRUE);
 	wipe(image, WIDTH * HEIGHT);
 	load("cone255.tif", 0x4768, tool, sizeof(tool));
+
+	clock_t start = clock();
 
 	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 	{
@@ -254,7 +301,7 @@ int main()
 	BOOL threadsActive = TRUE;
 	while (threadsActive)
 	{
-		Sleep(1000);
+		Sleep(100);
 		threadsActive = FALSE;
 		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 		{
@@ -262,6 +309,9 @@ int main()
 		}
 		if (!running) break;
 	}
+
+	double cpuTimeUsed = (double)(clock() - start)/CLOCKS_PER_SEC;
+	printf("Pixel interactions: %lu pixels in %f seconds.\n", pixelInteractions, cpuTimeUsed);
 
 	finish();
 }
