@@ -57,6 +57,22 @@ void save(char *name, BDEPTH *img, size_t size)
 	fclose(ptr);
 }
 
+int inputInt(char *text)
+{
+	printf("%s ", text);
+	char inp[20];
+	fgets(inp, 20, stdin);
+	return atol(inp);
+}
+
+int inputFloat(char *text)
+{
+	printf("%s ", text);
+	char inp[20];
+	fgets(inp, 20, stdin);
+	return atof(inp);
+}
+
 BDEPTH getPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y)
 {
 	return img[w * y + x];
@@ -69,19 +85,25 @@ void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, BDEPTH p)
 
 void resample(BDEPTH *img, BDEPTH *imgQtr)
 {
-	int qtrHeight = HEIGHT / 2;
-	int qtrWidth = WIDTH / 2;
-	BDEPTH p;
-	for (int y = 0; y < qtrHeight; y++)
+	int divisor = 2;
+	int targetHeight = HEIGHT / divisor;
+	int targetWidth = WIDTH / divisor;
+	unsigned long p;
+	int x, y, n, o;
+	for (y = 0; y < targetHeight; y++)
 	{
-		for (int x = 0; x < qtrWidth; x++)
+		for (x = 0; x < targetWidth; x++)
 		{
-			p = (getPixel(img, WIDTH, x * 2, y * 2)
-					+ getPixel(img, WIDTH, x * 2 + 1, y * 2)
-					+ getPixel(img, WIDTH, x * 2, y * 2 + 1)
-					+ getPixel(img, WIDTH, x * 2 + 1, y * 2 + 1))
-					/ 4;
-			imgQtr[qtrWidth * y + x] = p;
+			p = 0;
+			for (o = 0; o < divisor; o++)
+			{
+				for (n = 0; n < divisor; n++)
+				{
+					p += getPixel(img, WIDTH, x * divisor + n, y * divisor + o);
+				}
+			}
+			p /= divisor * divisor;
+			imgQtr[targetWidth * y + x] = p;
 		}
 	}
 }
@@ -315,7 +337,7 @@ int main()
 		{
 			while (!threads[threadNumber])
 			{
-				Sleep(0.1);
+				Sleep(1);
 			}
 		}
 	}
@@ -323,7 +345,7 @@ int main()
 	BOOL threadsActive = TRUE;
 	while (threadsActive)
 	{
-		Sleep(100);
+		Sleep(1);
 		threadsActive = FALSE;
 		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 		{
