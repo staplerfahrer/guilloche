@@ -86,14 +86,16 @@ int inputInt(char *text)
 	printf("%s ", text);
 	char inp[20];
 	fgets(inp, 20, stdin);
+	printf("\n");
 	return atol(inp);
 }
 
-int inputFloat(char *text)
+float inputFloat(char *text)
 {
 	printf("%s ", text);
 	char inp[20];
 	fgets(inp, 20, stdin);
+	printf("\n");
 	return atof(inp);
 }
 
@@ -198,6 +200,18 @@ BOOL WINAPI ctrlCHandler(DWORD signal)
 		running = FALSE;
 	}
     return TRUE;
+}
+
+void inputParameters()
+{
+	// pSet.waves = inputFloat("waves: ");
+	// pSet.spiral = inputFloat("spiral: ");
+	// pSet.depthA = inputFloat("depthA: ");
+	// pSet.depthB = inputFloat("depthB: ");
+	pSet.wheel1SizeMax = inputFloat("wheel1SizeMax: ");
+	// pSet.wheelCount = inputFloat("wheelCount: ");
+	// pSet.teethDensityRelative = inputFloat("teethDensityRelative: ");
+	// pSet.teethCountFixed = inputInt("teethCountFixed: ");
 }
 
 void concentricWobbleSpiral(int threadId)
@@ -397,6 +411,9 @@ DWORD WINAPI ThreadFunc(void *data)
 int main()
 {
 	SetConsoleCtrlHandler(ctrlCHandler, TRUE);
+
+	inputParameters();
+
 	wipe(image, WIDTH * HEIGHT);
 	load("cone255.tif", 0x4768, tool, sizeof(tool));
 
