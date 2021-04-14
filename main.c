@@ -27,6 +27,30 @@ BOOL threads[THREADCOUNT];
 int threadNumber;
 unsigned long pixelInteractions = 0;
 
+typedef struct Parameters
+{
+	float waves;
+	float spiral;
+	float depthA;
+	float depthB;
+	float wheel1SizeMax;
+	float wheelCount;
+	float teethDensityRelative;
+	int teethCountFixed;
+} ParameterSet;
+
+ParameterSet pSet =
+{
+	.waves = 0,
+	.spiral = 0,
+	.depthA = 7.0/8,
+	.depthB = 1.0/8,
+	.wheel1SizeMax = 0.9,
+	.wheelCount = 72,
+	.teethDensityRelative = 0.5,
+	.teethCountFixed = 0
+};
+
 void wipe(BDEPTH *img, unsigned long elements)
 {
 	for (unsigned long i = 0; i < elements; i++) img[i] = -1;
@@ -305,6 +329,54 @@ void overlappingCircles(int threadId)
 	}
 }
 
+void customParameterDrawing(int threadId)
+{
+	unsigned long cutCounter = 0;
+	float waves = pSet.waves;
+	float spiral = pSet.spiral;
+	float depthA = pSet.depthA;
+	float depthB = pSet.depthB;
+	float wheel1Rotation;
+	float wheel1Size;
+	float wheel1SizeMax = pSet.wheel1SizeMax;
+	int wheel1Teeth;
+	float wheel1Tooth;
+	float wheelCount = pSet.wheelCount;
+	float teethDensityRelative = pSet.teethDensityRelative;
+	int teethCountFixed = pSet.teethCountFixed;
+
+	int wheelNumber;
+	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
+	{
+		printf("%d: wheel %d...", threadId, wheelNumber);
+		wheel1Size = 0.4; //wheel1SizeMax / wheelCount * wheelNumber;
+		wheel1Teeth = teethCountFixed > 0
+			? teethCountFixed
+			: PI * WIDTH * wheel1Size * teethDensityRelative;
+		wheel1Tooth = TWOPI / wheel1Teeth;
+		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
+		float wheelCenterOffset = 0.4;
+		float wheelCenterX = cos(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
+		float wheelCenterY = sin(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
+		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
+		{
+			cutCounter++;
+			if (cutCounter % THREADCOUNT != threadId) continue; // not this thread
+			if (cutCounter % 1000 == 0) printf(".");
+			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
+			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
+			float depthX = sqrt(pow(fabs(cutX),2)+pow(fabs(cutY),2));
+			cutFloat(image, tool,
+					cutX,
+					cutY,
+					depthA*depthX+depthB);
+			if (!running) break;
+		}
+		printf(" ");
+		if (!running) break;
+	}
+}
+
 DWORD WINAPI ThreadFunc(void *data)
 {
 	// https://stackoverflow.com/questions/1981459/using-threads
@@ -316,7 +388,7 @@ DWORD WINAPI ThreadFunc(void *data)
 	int threadId = threadNumber;
 	threads[threadId] = TRUE;
 	//concentricWobbleSpiral(threadId);
-	overlappingCircles(threadId);
+	customParameterDrawing(threadId);
 
 	threads[threadId] = FALSE;
 	return 0;
