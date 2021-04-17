@@ -6,7 +6,8 @@
 #define WIDTH 8192
 #define HEIGHT 8192
 #define BDEPTH unsigned short
-#define TOOLSIZE 255
+// #define TOOLSIZE 255
+#define TOOLSIZE 511
 #define PI 3.1415926535897932384626433832795
 #define TWOPI 6.283185307179586476925286766559
 #define THREADCOUNT 12
@@ -31,9 +32,11 @@ typedef struct Parameters
 {
 	float waves;
 	float spiral;
-	float depthA;
-	float depthB;
-	float wheel1SizeMax;
+	float depthA;		// ax
+	float depthB;		//    + b
+	float wheel1SizeA;	// ax
+	float wheel1SizeB;	//    + b
+	float wheelCenterOffset;
 	float wheelCount;
 	float teethDensityRelative;
 	int teethCountFixed;
@@ -45,7 +48,9 @@ ParameterSet pSet =
 	.spiral = 0,
 	.depthA = 7.0/8,
 	.depthB = 1.0/8,
-	.wheel1SizeMax = 0.9,
+	.wheel1SizeA = 0.9,
+	.wheel1SizeB = 0.0,
+	.wheelCenterOffset = 0.4,
 	.wheelCount = 72,
 	.teethDensityRelative = 0.5,
 	.teethCountFixed = 0
@@ -81,21 +86,19 @@ void save(char *name, BDEPTH *img, size_t size)
 	fclose(ptr);
 }
 
-int inputInt(char *text)
+int inputInt(char *text, int value)
 {
-	printf("%s ", text);
+	printf("%s (%d): ", text, value);
 	char inp[20];
 	fgets(inp, 20, stdin);
-	printf("\n");
 	return atol(inp);
 }
 
-float inputFloat(char *text)
+float inputFloat(char *text, float value)
 {
-	printf("%s ", text);
+	printf("%s (%f): ", text, value);
 	char inp[20];
 	fgets(inp, 20, stdin);
-	printf("\n");
 	return atof(inp);
 }
 
@@ -188,6 +191,7 @@ void finish()
 	resample(image, imageQtr);
 	printf("saving...\n");
 	save("out.tif", imageQtr, sizeof(imageQtr));
+	system("out.tif");
 	printf("done\n");
 }
 
@@ -202,16 +206,26 @@ BOOL WINAPI ctrlCHandler(DWORD signal)
     return TRUE;
 }
 
+BOOL notThisThread(int threadId, unsigned long cutCounter)
+{
+	// Perfectly divide the cutting
+	// tasks over the number of threads (12).
+	// cutCounter % THREADCOUNT = 0..11
+	return cutCounter % THREADCOUNT != threadId;
+}
+
 void inputParameters()
 {
-	// pSet.waves = inputFloat("waves: ");
-	// pSet.spiral = inputFloat("spiral: ");
-	// pSet.depthA = inputFloat("depthA: ");
-	// pSet.depthB = inputFloat("depthB: ");
-	pSet.wheel1SizeMax = inputFloat("wheel1SizeMax: ");
-	// pSet.wheelCount = inputFloat("wheelCount: ");
-	// pSet.teethDensityRelative = inputFloat("teethDensityRelative: ");
-	// pSet.teethCountFixed = inputInt("teethCountFixed: ");
+	pSet.waves = inputFloat("waves", pSet.waves);
+	pSet.spiral = inputFloat("spiral", pSet.spiral);
+	pSet.depthA = inputFloat("depthA", pSet.depthA);
+	pSet.depthB = inputFloat("depthB", pSet.depthB);
+	pSet.wheel1SizeA = inputFloat("wheel1SizeA", pSet.wheel1SizeA);
+	pSet.wheel1SizeB = inputFloat("wheel1SizeB", pSet.wheel1SizeB);
+	pSet.wheelCenterOffset = inputFloat("wheelCenterOffset", pSet.wheelCenterOffset);
+	pSet.wheelCount = inputFloat("wheelCount", pSet.wheelCount);
+	pSet.teethDensityRelative = inputFloat("teethDensityRelative", pSet.teethDensityRelative);
+	pSet.teethCountFixed = inputInt("teethCountFixed", pSet.teethCountFixed);
 }
 
 void concentricWobbleSpiral(int threadId)
@@ -345,51 +359,103 @@ void overlappingCircles(int threadId)
 
 void customParameterDrawing(int threadId)
 {
-	unsigned long cutCounter = 0;
 	float waves = pSet.waves;
 	float spiral = pSet.spiral;
 	float depthA = pSet.depthA;
 	float depthB = pSet.depthB;
-	float wheel1Rotation;
-	float wheel1Size;
-	float wheel1SizeMax = pSet.wheel1SizeMax;
-	int wheel1Teeth;
-	float wheel1Tooth;
+	float wheel1SizeA = pSet.wheel1SizeA;
+	float wheel1SizeB = pSet.wheel1SizeB;
+	float wheelCenterOffset = pSet.wheelCenterOffset;
 	float wheelCount = pSet.wheelCount;
 	float teethDensityRelative = pSet.teethDensityRelative;
 	int teethCountFixed = pSet.teethCountFixed;
 
+	unsigned long cutCounter = 0;
+	float wheel1Rotation;
+	float wheel1Size;
+	int wheel1Teeth;
+	float wheel1Tooth;
 	int wheelNumber;
 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
 		printf("%d: wheel %d...", threadId, wheelNumber);
-		wheel1Size = 0.4; //wheel1SizeMax / wheelCount * wheelNumber;
+		wheel1Size = wheel1SizeA*(wheelNumber/wheelCount)+wheel1SizeB;
 		wheel1Teeth = teethCountFixed > 0
 			? teethCountFixed
 			: PI * WIDTH * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
 		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
-		float wheelCenterOffset = 0.4;
 		float wheelCenterX = cos(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
 		float wheelCenterY = sin(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
 		{
 			cutCounter++;
-			if (cutCounter % THREADCOUNT != threadId) continue; // not this thread
-			if (cutCounter % 1000 == 0) printf(".");
+			if (notThisThread(threadId, cutCounter)) continue;
 			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
 			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
 			float depthX = sqrt(pow(fabs(cutX),2)+pow(fabs(cutY),2));
-			cutFloat(image, tool,
-					cutX,
-					cutY,
-					depthA*depthX+depthB);
+			cutFloat(image, tool, cutX, cutY, depthA*depthX+depthB);
 			if (!running) break;
 		}
 		printf(" ");
 		if (!running) break;
 	}
 }
+
+// void drawCone(int threadId)
+// {
+// 	float waves = 0;
+// 	float spiral = 0;
+// 	float depthA = 0;
+// 	float depthB = 0;
+// 	float wheel1SizeA = 1;
+// 	float wheel1SizeB = 0;
+// 	float wheelCenterOffset = 0;
+// 	float wheelCount = 16384;
+// 	float teethDensityRelative = 16;
+// 	int teethCountFixed = 0;
+
+// 	unsigned long cutCounter = 0;
+// 	float wheel1Rotation;
+// 	float wheel1Size;
+// 	int wheel1Teeth;
+// 	float wheel1Tooth;
+// 	int wheelNumber;
+
+// 	BDEPTH halfX;
+// 	BDEPTH halfY;
+// 	BDEPTH imageX;
+// 	BDEPTH imageY;
+// 	halfX = (BDEPTH) (WIDTH / 2);
+// 	halfY = (BDEPTH) (HEIGHT / 2);
+
+// 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
+// 	{
+// 		//printf("%d: wheel %d...", threadId, wheelNumber);
+// 		wheel1Size = wheel1SizeA*(wheelNumber/wheelCount)+wheel1SizeB;
+// 		wheel1Teeth = teethCountFixed > 0
+// 			? teethCountFixed
+// 			: PI * WIDTH * wheel1Size * teethDensityRelative;
+// 		wheel1Tooth = TWOPI / wheel1Teeth;
+// 		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
+// 		float wheelCenterX = cos(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
+// 		float wheelCenterY = sin(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
+// 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
+// 		{
+// 			cutCounter++;
+// 			if (notThisThread(threadId, cutCounter)) continue;
+// 			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
+// 			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
+// 			imageX = halfX + (BDEPTH) (cutX * (float) WIDTH / 2);
+// 			imageY = HEIGHT - (halfY + (BDEPTH) (cutY * (float) HEIGHT / 2));
+// 			BDEPTH p = (BDEPTH) (0xFFFF*(wheelNumber-1)/wheelCount);
+// 			setPixel(image, WIDTH, imageX, imageY, p);
+// 			if (!running) break;
+// 		}
+// 		//printf(" ");
+// 		//if (!running) break;
+// 	}
+// }
 
 DWORD WINAPI ThreadFunc(void *data)
 {
@@ -401,8 +467,8 @@ DWORD WINAPI ThreadFunc(void *data)
 
 	int threadId = threadNumber;
 	threads[threadId] = TRUE;
-	//concentricWobbleSpiral(threadId);
 	customParameterDrawing(threadId);
+	// drawCone(threadId);
 
 	threads[threadId] = FALSE;
 	return 0;
@@ -412,39 +478,47 @@ int main()
 {
 	SetConsoleCtrlHandler(ctrlCHandler, TRUE);
 
-	inputParameters();
-
-	wipe(image, WIDTH * HEIGHT);
-	load("cone255.tif", 0x4768, tool, sizeof(tool));
-
-	clock_t start = clock();
-
-	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
+	while (running)
 	{
-		HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
-		if (thread) 
-		{
-			while (!threads[threadNumber])
-			{
-				Sleep(1);
-			}
-		}
-	}
+		inputParameters();
 
-	BOOL threadsActive = TRUE;
-	while (threadsActive)
-	{
-		Sleep(1);
-		threadsActive = FALSE;
+		wipe(image, WIDTH * HEIGHT);
+		// load("cone255.tif", 0x4768, tool, sizeof(tool));
+		load("cone511d.tif", 0x48ac, tool, sizeof(tool));
+		// load("cone511d-softer.tif", 0x48fa, tool, sizeof(tool));
+		// load("cone255-maxed.tif", 0x48d2, tool, sizeof(tool));
+		// load("smooth2550.tif", 0x477a0, tool, sizeof(tool));
+
+		clock_t start = clock();
+
 		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 		{
-			threadsActive |= threads[threadNumber];
+			HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
+			if (thread) 
+			{
+				while (!threads[threadNumber])
+				{
+					Sleep(1);
+				}
+			}
 		}
-		if (!running) break;
+
+		BOOL threadsActive = TRUE;
+		while (threadsActive)
+		{
+			Sleep(1);
+			threadsActive = FALSE;
+			for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
+			{
+				threadsActive |= threads[threadNumber];
+			}
+			if (!running) break;
+		}
+
+		double cpuTimeUsed = (double)(clock() - start)/CLOCKS_PER_SEC;
+		printf("Pixel interactions: %lu pixels in %f seconds.\n", pixelInteractions, cpuTimeUsed);
+
+		finish();
 	}
-
-	double cpuTimeUsed = (double)(clock() - start)/CLOCKS_PER_SEC;
-	printf("Pixel interactions: %lu pixels in %f seconds.\n", pixelInteractions, cpuTimeUsed);
-
-	finish();
+	return 0;
 }
