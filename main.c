@@ -7,7 +7,7 @@
 #define HEIGHT 8192
 #define BDEPTH unsigned short
 // #define TOOLSIZE 255
-#define TOOLSIZE 511
+#define TOOLSIZE 1023
 #define PI 3.1415926535897932384626433832795
 #define TWOPI 6.283185307179586476925286766559
 #define THREADCOUNT 12
@@ -484,10 +484,12 @@ int main()
 
 		wipe(image, WIDTH * HEIGHT);
 		// load("cone255.tif", 0x4768, tool, sizeof(tool));
-		load("cone511d.tif", 0x48ac, tool, sizeof(tool));
+		// load("cone511d.tif", 0x48ac, tool, sizeof(tool));
 		// load("cone511d-softer.tif", 0x48fa, tool, sizeof(tool));
 		// load("cone255-maxed.tif", 0x48d2, tool, sizeof(tool));
 		// load("smooth2550.tif", 0x477a0, tool, sizeof(tool));
+		load("cone1023.tif", 0x48da, tool, sizeof(tool));
+
 
 		clock_t start = clock();
 
