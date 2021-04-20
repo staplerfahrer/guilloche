@@ -3,8 +3,9 @@
 #include <windows.h>
 #include <time.h>
 
-#define WIDTH 8192
-#define HEIGHT 8192
+#define WIDTH 16384
+#define HEIGHT 16384
+#define RESAMPLE_DIVISOR 4
 #define BDEPTH unsigned short
 // #define TOOLSIZE 255
 #define TOOLSIZE 1023
@@ -20,7 +21,7 @@ char imageHeader[0x449A]; // same 4k or 8k
 char imageFooter[46]; // 47 for 8k?
 long int imageFooterAddress = 0x200449A; // 200449A for 4k, 800449A for 8k
 BDEPTH image[WIDTH * HEIGHT];
-BDEPTH imageQtr[WIDTH * HEIGHT / 4];
+BDEPTH imageFinal[WIDTH * HEIGHT / (RESAMPLE_DIVISOR * RESAMPLE_DIVISOR)];
 BDEPTH tool[TOOLSIZE * TOOLSIZE];
 
 BOOL running = TRUE;
@@ -102,21 +103,20 @@ float inputFloat(char *text, float value)
 	return atof(inp);
 }
 
-BDEPTH getPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y)
+BDEPTH getPixel(BDEPTH *img, int w, int x, int y)
 {
 	return img[w * y + x];
 }
 
-void setPixel(BDEPTH *img, BDEPTH w, BDEPTH x, BDEPTH y, BDEPTH p)
+void setPixel(BDEPTH *img, int w, int x, int y, BDEPTH p)
 {
 	img[w * y + x] = p;
 }
 
 void resample(BDEPTH *img, BDEPTH *imgQtr)
 {
-	int divisor = 2;
-	int targetHeight = HEIGHT / divisor;
-	int targetWidth = WIDTH / divisor;
+	int targetHeight = HEIGHT / RESAMPLE_DIVISOR;
+	int targetWidth = WIDTH / RESAMPLE_DIVISOR;
 	unsigned long p;
 	int x, y, n, o;
 	for (y = 0; y < targetHeight; y++)
@@ -124,14 +124,14 @@ void resample(BDEPTH *img, BDEPTH *imgQtr)
 		for (x = 0; x < targetWidth; x++)
 		{
 			p = 0;
-			for (o = 0; o < divisor; o++)
+			for (o = 0; o < RESAMPLE_DIVISOR; o++)
 			{
-				for (n = 0; n < divisor; n++)
+				for (n = 0; n < RESAMPLE_DIVISOR; n++)
 				{
-					p += getPixel(img, WIDTH, x * divisor + n, y * divisor + o);
+					p += getPixel(img, WIDTH, x * RESAMPLE_DIVISOR + n, y * RESAMPLE_DIVISOR + o);
 				}
 			}
-			p /= divisor * divisor;
+			p /= RESAMPLE_DIVISOR * RESAMPLE_DIVISOR;
 			imgQtr[targetWidth * y + x] = p;
 		}
 	}
@@ -147,9 +147,9 @@ float limit(float a)
 	return a < 0 ? 0 : a > 1 ? 1 : a;
 }
 
-void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
+void cut(BDEPTH *img, BDEPTH *tool, int x, int y, BDEPTH depth)
 {
-	BDEPTH toolX, toolY;
+	int toolX, toolY;
 	int imageX, imageY;
 	BDEPTH pImage = 0;
 	BDEPTH pTool = 0;
@@ -168,7 +168,7 @@ void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 
 			pTool = getPixel(tool, TOOLSIZE, toolX, toolY);
 			pImage = getPixel(img, WIDTH, imageX, imageY);
-			pFinal = (BDEPTH) minimum(pTool + depth, pImage);
+			pFinal = minimum(pTool + depth, pImage);
 			setPixel(img, WIDTH, imageX, imageY, pFinal);
 		}
 	}
@@ -177,10 +177,10 @@ void cut(BDEPTH *img, BDEPTH *tool, BDEPTH x, BDEPTH y, BDEPTH depth)
 
 void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
 {
-	BDEPTH halfX = (BDEPTH) (WIDTH / 2);
-	BDEPTH halfY = (BDEPTH) (HEIGHT / 2);
-	BDEPTH imageX = halfX + (BDEPTH) (x * (float) WIDTH / 2);
-	BDEPTH imageY = HEIGHT - (halfY + (BDEPTH) (y * (float) HEIGHT / 2));
+	int halfX = WIDTH / 2;
+	int halfY = HEIGHT / 2;
+	int imageX = halfX + (x * (float) WIDTH / 2);
+	int imageY = HEIGHT - (halfY + (y * (float) HEIGHT / 2));
 	BDEPTH depthInt = 0xFFFF - (limit(depth) * 0xFFFF);
 	cut(img, tool, imageX, imageY, depthInt);
 }
@@ -188,9 +188,9 @@ void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
 void finish()
 {
 	printf("resampling...\n");
-	resample(image, imageQtr);
+	resample(image, imageFinal);
 	printf("saving...\n");
-	save("out.tif", imageQtr, sizeof(imageQtr));
+	save("out.tif", imageFinal, sizeof(imageFinal));
 	system("out.tif");
 	printf("done\n");
 }
