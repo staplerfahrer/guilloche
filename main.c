@@ -53,7 +53,7 @@ ParameterSet pSet =
 	.wheel1SizeB = 0.0,
 	.wheelCenterOffset = 0.4,
 	.wheelCount = 72,
-	.teethDensityRelative = 0.5,
+	.teethDensityRelative = 0.1,
 	.teethCountFixed = 0
 };
 
@@ -89,18 +89,24 @@ void save(char *name, BDEPTH *img, size_t size)
 
 int inputInt(char *text, int value)
 {
-	printf("%s (%d): ", text, value);
+	printf("%s [%d]: ", text, value);
 	char inp[20];
 	fgets(inp, 20, stdin);
-	return atol(inp);
+	if (strlen(inp) > 1) //??
+		{return atol(inp);}
+	else
+		{return value;}
 }
 
 float inputFloat(char *text, float value)
 {
-	printf("%s (%f): ", text, value);
+	printf("%s [%f]: ", text, value);
 	char inp[20];
 	fgets(inp, 20, stdin);
-	return atof(inp);
+	if (strlen(inp) > 1) //??
+		{return atof(inp);}
+	else
+		{return value;}
 }
 
 BDEPTH getPixel(BDEPTH *img, int w, int x, int y)
