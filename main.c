@@ -24,9 +24,10 @@
 #define RESAMPLE_DIVISOR 1
 
 // 4k
-#define IMAGE_HEADER_SIZE 0x449A       /* same 4k or 8k */
-#define IMAGE_FOOTER_SIZE 46           /* 47 for 8k? */
-#define IMAGE_FOOTER_ADDRESS 0x200449A /* 200449A for 4k, 800449A for 8k */
+#define IMAGE_HEADER_SIZE 0x449A          /* same 4k or 8k                  */
+#define IMAGE_FOOTER_SIZE 46              /* 47 for 8k?                     */
+#define IMAGE_FOOTER_ADDRESS 0x200449A    /* 200449A for 4k, 800449A for 8k */
+#define TIF_FORMAT_FILE "4kx4kx1x16b.tif" /* header and footer              */
 // 1k
 
 
@@ -92,7 +93,7 @@ void load(char *name, unsigned long headerSize, BDEPTH *img, size_t size)
 void save(char *name, BDEPTH *img, size_t size)
 {
 	FILE *ptr;
-	ptr = fopen("4kx4kx1x16b.tif", "rb");
+	ptr = fopen(TIF_FORMAT_FILE, "rb");
 	fread(imageHeader, sizeof(imageHeader), 1, ptr);
 	fseek(ptr, IMAGE_FOOTER_ADDRESS, SEEK_SET);
 	fread(imageFooter, sizeof(imageFooter), 1, ptr);
