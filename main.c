@@ -3,23 +3,41 @@
 #include <windows.h>
 #include <time.h>
 
-#define WIDTH 16384
-#define HEIGHT 16384
-#define RESAMPLE_DIVISOR 4
-#define BDEPTH unsigned short
-// #define TOOLSIZE 255
-#define TOOLSIZE 1023
+//--------------------------------------------------------------------
 #define PI 3.1415926535897932384626433832795
 #define TWOPI 6.283185307179586476925286766559
+#define BDEPTH unsigned short
+
+//--------------------------------------------------------------------
 #define THREADCOUNT 12
+
+//--------------------------------------------------------------------
+// #define TOOLSIZE 1023
+#define TOOLSIZE 255
+
+//--------------------------------------------------------------------
+// #define WIDTH 16384
+// #define HEIGHT 16384
+// #define RESAMPLE_DIVISOR 4
+#define WIDTH 4096
+#define HEIGHT 4096
+#define RESAMPLE_DIVISOR 1
+
+// 4k
+#define IMAGE_HEADER_SIZE 0x449A       /* same 4k or 8k */
+#define IMAGE_FOOTER_SIZE 46           /* 47 for 8k? */
+#define IMAGE_FOOTER_ADDRESS 0x200449A /* 200449A for 4k, 800449A for 8k */
+// 1k
+
 
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
 // https://stackoverflow.com/questions/22945647/why-does-a-
 //		large-local-array-crash-my-program-but-a-global-one-doesnt
-char imageHeader[0x449A]; // same 4k or 8k
-char imageFooter[46]; // 47 for 8k?
-long int imageFooterAddress = 0x200449A; // 200449A for 4k, 800449A for 8k
+char imageHeader[IMAGE_HEADER_SIZE];
+char imageFooter[IMAGE_FOOTER_SIZE]; 
+//--------------------------------------------------------------------
+
 BDEPTH image[WIDTH * HEIGHT];
 BDEPTH imageFinal[WIDTH * HEIGHT / (RESAMPLE_DIVISOR * RESAMPLE_DIVISOR)];
 BDEPTH tool[TOOLSIZE * TOOLSIZE];
@@ -76,7 +94,7 @@ void save(char *name, BDEPTH *img, size_t size)
 	FILE *ptr;
 	ptr = fopen("4kx4kx1x16b.tif", "rb");
 	fread(imageHeader, sizeof(imageHeader), 1, ptr);
-	fseek(ptr, imageFooterAddress, SEEK_SET);
+	fseek(ptr, IMAGE_FOOTER_ADDRESS, SEEK_SET);
 	fread(imageFooter, sizeof(imageFooter), 1, ptr);
 	fclose(ptr);
 
@@ -119,7 +137,7 @@ void setPixel(BDEPTH *img, int w, int x, int y, BDEPTH p)
 	img[w * y + x] = p;
 }
 
-void resample(BDEPTH *img, BDEPTH *imgQtr)
+void resample(BDEPTH *img, BDEPTH *imgResized)
 {
 	int targetHeight = HEIGHT / RESAMPLE_DIVISOR;
 	int targetWidth = WIDTH / RESAMPLE_DIVISOR;
@@ -138,7 +156,7 @@ void resample(BDEPTH *img, BDEPTH *imgQtr)
 				}
 			}
 			p /= RESAMPLE_DIVISOR * RESAMPLE_DIVISOR;
-			imgQtr[targetWidth * y + x] = p;
+			imgResized[targetWidth * y + x] = p;
 		}
 	}
 }
@@ -193,11 +211,19 @@ void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
 
 void finish()
 {
-	printf("resampling...\n");
-	resample(image, imageFinal);
-	printf("saving...\n");
-	save("out.tif", imageFinal, sizeof(imageFinal));
-	system("out.tif");
+	if (RESAMPLE_DIVISOR > 1)
+	{
+		printf("resampling...\n");
+		resample(image, imageFinal);
+		printf("saving...\n");
+		save("C:\\Temp\\out.tif", imageFinal, sizeof(imageFinal));
+	}
+	else
+	{
+		printf("saving...\n");
+		save("C:\\Temp\\out.tif", image, sizeof(image));
+	}
+	//system("C:\\Temp\\out.tif"); // open the .tif
 	printf("done\n");
 }
 
@@ -480,22 +506,22 @@ DWORD WINAPI ThreadFunc(void *data)
 	return 0;
 }
 
-int main()
+void uiLoop()
 {
 	SetConsoleCtrlHandler(ctrlCHandler, TRUE);
 
 	while (running)
 	{
+		// present UI
 		inputParameters();
 
 		wipe(image, WIDTH * HEIGHT);
-		// load("cone255.tif", 0x4768, tool, sizeof(tool));
+		load("cone255.tif", 0x4768, tool, sizeof(tool));
 		// load("cone511d.tif", 0x48ac, tool, sizeof(tool));
 		// load("cone511d-softer.tif", 0x48fa, tool, sizeof(tool));
 		// load("cone255-maxed.tif", 0x48d2, tool, sizeof(tool));
 		// load("smooth2550.tif", 0x477a0, tool, sizeof(tool));
-		load("cone1023.tif", 0x48da, tool, sizeof(tool));
-
+		// load("cone1023.tif", 0x48da, tool, sizeof(tool));
 
 		clock_t start = clock();
 
@@ -524,9 +550,73 @@ int main()
 		}
 
 		double cpuTimeUsed = (double)(clock() - start)/CLOCKS_PER_SEC;
-		printf("Pixel interactions: %lu pixels in %f seconds.\n", pixelInteractions, cpuTimeUsed);
+		printf("\nPixel interactions: %.3f M pixels in %.3f seconds, %.3f G pix/sec.\n", 
+			(double)pixelInteractions/1000000, 
+			cpuTimeUsed, 
+			(double)pixelInteractions/cpuTimeUsed/1000000000);
 
 		finish();
+	}
+}
+
+void nonUi(int argc, char *argv[])
+{
+	if (argc < 11) return;
+	pSet.waves = atof(argv[1]);
+	pSet.spiral = atof(argv[2]);
+	pSet.depthA = atof(argv[3]);
+	pSet.depthB = atof(argv[4]);
+	pSet.wheel1SizeA = atof(argv[5]);
+	pSet.wheel1SizeB = atof(argv[6]);
+	pSet.wheelCenterOffset = atof(argv[7]);
+	pSet.wheelCount = atof(argv[8]);
+	pSet.teethDensityRelative = atof(argv[9]);
+	pSet.teethCountFixed = atoi(argv[10]);
+
+	wipe(image, WIDTH * HEIGHT);
+	load("cone255.tif", 0x4768, tool, sizeof(tool));
+	// load("cone511d.tif", 0x48ac, tool, sizeof(tool));
+	// load("cone511d-softer.tif", 0x48fa, tool, sizeof(tool));
+	// load("cone255-maxed.tif", 0x48d2, tool, sizeof(tool));
+	// load("smooth2550.tif", 0x477a0, tool, sizeof(tool));
+	// load("cone1023.tif", 0x48da, tool, sizeof(tool));
+
+	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
+	{
+		HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
+		if (thread) 
+		{
+			while (!threads[threadNumber])
+			{
+				Sleep(1);
+			}
+		}
+	}
+
+	BOOL threadsActive = TRUE;
+	while (threadsActive)
+	{
+		Sleep(1);
+		threadsActive = FALSE;
+		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
+		{
+			threadsActive |= threads[threadNumber];
+		}
+		if (!running) break;
+	}
+
+	finish();
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc == 1)
+	{
+		uiLoop();
+	}
+	else
+	{
+		nonUi(argc, argv);
 	}
 	return 0;
 }
