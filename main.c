@@ -11,7 +11,7 @@
 #define ULONG  unsigned long
 
 //--------------------------------------------------------------------
-#define THREADCOUNT 1
+#define THREADCOUNT 16
 
 //--------------------------------------------------------------------
 USHORT width;
@@ -19,9 +19,9 @@ USHORT height;
 USHORT resampleDivisor;
 USHORT imageHeaderSize;
 USHORT imageFooterSize;
-ULONG imageFooterAddress;
-char tifFormatFile[20];
+ULONG  imageFooterAddress;
 USHORT toolSize;
+char   tifFormatFile[20];
 
 //--------------------------------------------------------------------
 // Keep global, or else it won't fit on the stack.
@@ -39,9 +39,9 @@ ULONG pixelInteractions = 0;
 
 //--------------------------------------------------------------------
 BOOL running = TRUE;
-int threadNumber;
-int threadsStarted;
-int threadsStopped;
+int  threadNumber;
+int  threadsStarted;
+int  threadsStopped;
 
 typedef struct Parameters
 {
@@ -59,16 +59,16 @@ typedef struct Parameters
 
 ParameterSet pSet =
 {
-	.waves = 0,
-	.spiral = 0,
-	.depthA = 7.0/8,
-	.depthB = 1.0/8,
-	.wheel1SizeA = 0.9,
-	.wheel1SizeB = 0.0,
-	.wheelCenterOffset = 0.4,
-	.wheelCount = 72,
-	.teethDensityRelative = 0.1,
-	.teethCountFixed = 0
+	.waves                = 0,
+	.spiral               = 0,
+	.depthA               = 7.0/8,
+	.depthB               = 1.0/8,
+	.wheel1SizeA          = 0.9,
+	.wheel1SizeB          = 0.0,
+	.wheelCenterOffset    = 0.0,
+	.wheelCount           = 10,
+	.teethDensityRelative = 0.01,
+	.teethCountFixed      = 0
 };
 
 void wipe(USHORT *img, ULONG elements)
@@ -169,7 +169,7 @@ float limit(float a)
 	return a < 0 ? 0 : a > 1 ? 1 : a;
 }
 
-void cut(USHORT *img, USHORT *tool, int x, int y, USHORT depth)
+void cut(USHORT *img, int x, int y, USHORT depth)
 {
 	int toolX, toolY;
 	int imageX, imageY;
@@ -190,21 +190,21 @@ void cut(USHORT *img, USHORT *tool, int x, int y, USHORT depth)
 
 			pTool = getPixel(tool, toolSize, toolX, toolY);
 			pImage = getPixel(img, width, imageX, imageY);
-			pFinal = minimum(pTool + depth, pImage); // + causes unsigned int?
+			pFinal = minimum(pTool + depth, pImage); // "+" causes unsigned int?
 			setPixel(img, width, imageX, imageY, pFinal);
 		}
 	}
 	pixelInteractions += pow(toolSize, 2) * 3;
 }
 
-void cutFloat(USHORT *img, USHORT *tool, float x, float y, float depth)
+void cutFloat(USHORT *img, float x, float y, float depth)
 {
 	int halfX = width / 2;
 	int halfY = height / 2;
 	int imageX = halfX + (x * (float) width / 2);
 	int imageY = height - (halfY + (y * (float) height / 2));
 	USHORT depthInt = 0xFFFF - (limit(depth) * 0xFFFF);
-	cut(img, tool, imageX, imageY, depthInt);
+	cut(img, imageX, imageY, depthInt);
 }
 
 void finish()
@@ -238,28 +238,27 @@ BOOL WINAPI ctrlCHandler(DWORD signal)
     return TRUE;
 }
 
-BOOL notThisThread(int threadId, ULONG cutCounter)
-{
-	// Perfectly divide the cutting
-	// tasks over the number of threads (THREADCOUNT).
-	// cutCounter % THREADCOUNT = 0..11
-	//printf("cutCounter %i THREADCOUNT %i threadId %i", cutCounter, THREADCOUNT, threadId);
-	return cutCounter % THREADCOUNT != threadId;
-}
-
 void parameterUi()
 {
-	pSet.waves                = inputFloat("1/10  waves", pSet.waves);
-	pSet.spiral               = inputFloat("2/10  spiral", pSet.spiral);
-	pSet.depthA               = inputFloat("3/10  depthA", pSet.depthA);
-	pSet.depthB               = inputFloat("4/10  depthB", pSet.depthB);
-	pSet.wheel1SizeA          = inputFloat("5/10  wheel1SizeA", pSet.wheel1SizeA);
-	pSet.wheel1SizeB          = inputFloat("6/10  wheel1SizeB", pSet.wheel1SizeB);
-	pSet.wheelCenterOffset    = inputFloat("7/10  wheelCenterOffset", pSet.wheelCenterOffset);
-	pSet.wheelCount           = inputFloat("8/10  wheelCount", pSet.wheelCount);
-	pSet.teethDensityRelative = inputFloat("9/10  teethDensityRelative", pSet.teethDensityRelative);
-	pSet.teethCountFixed      = inputInt(  "10/10 teethCountFixed", pSet.teethCountFixed);
+	pSet.waves                = inputFloat("1/10  waves                ", pSet.waves);
+	pSet.spiral               = inputFloat("2/10  spiral               ", pSet.spiral);
+	pSet.depthA               = inputFloat("3/10  depthA               ", pSet.depthA);
+	pSet.depthB               = inputFloat("4/10  depthB               ", pSet.depthB);
+	pSet.wheel1SizeA          = inputFloat("5/10  wheel1SizeA          ", pSet.wheel1SizeA);
+	pSet.wheel1SizeB          = inputFloat("6/10  wheel1SizeB          ", pSet.wheel1SizeB);
+	pSet.wheelCenterOffset    = inputFloat("7/10  wheelCenterOffset    ", pSet.wheelCenterOffset);
+	pSet.wheelCount           = inputFloat("8/10  wheelCount           ", pSet.wheelCount);
+	pSet.teethDensityRelative = inputFloat("9/10  teethDensityRelative ", pSet.teethDensityRelative);
+	pSet.teethCountFixed      = inputInt(  "10/10 teethCountFixed      ", pSet.teethCountFixed);
 }
+
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+BOOL notMyJob(ULONG cutCounter, int threadId)
+{
+	return cutCounter % THREADCOUNT != threadId;
+}
+#pragma GCC pop_options
 
 void concentricWobbleSpiral(int threadId)
 {
@@ -289,7 +288,7 @@ void concentricWobbleSpiral(int threadId)
 		{
 			cutCounter++;
 			if (cutCounter % 1000 == 0) printf(".");
-			cutFloat(image, tool,
+			cutFloat(image,
 					wheel1SizeMax*wheel1Size*cos(wheel1Rotation),
 					wheel1SizeMax*wheel1Size*sin(wheel1Rotation),
 					((7.0/8)
@@ -332,7 +331,7 @@ void sunburst(int threadId)
 			cutCounter++;
 			if (cutCounter % THREADCOUNT != threadId) continue;
 			if (cutCounter % 1000 == 0) printf(".");
-			cutFloat(image, tool,
+			cutFloat(image,
 					wheel1Size*cos(wheel1Rotation+spiralTurn),
 					wheel1Size*sin(wheel1Rotation+spiralTurn),
 					depthA*(0)+depthB);
@@ -379,7 +378,7 @@ void overlappingCircles(int threadId)
 			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
 			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
 			float depthX = sqrt(pow(fabs(cutX),2)+pow(fabs(cutY),2));
-			cutFloat(image, tool,
+			cutFloat(image,
 					cutX,
 					cutY,
 					depthA*depthX+depthB);
@@ -423,19 +422,14 @@ void customParameterDrawing(int threadId)
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
 		{
 			cutCounter++;
-			if (notThisThread(threadId, cutCounter)) 
-			{
-					printf("not ");
-
-				continue;
-			}
+			if (notMyJob(cutCounter, threadId))	continue;
+			
 			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
 			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
 			float depthX = sqrt(pow(fabs(cutX),2)+pow(fabs(cutY),2));
-			cutFloat(image, tool, cutX, cutY, depthA*depthX+depthB);
+			cutFloat(image, cutX, cutY, depthA*depthX+depthB);
 			if (!running) break;
 		}
-		printf("%s ", running ? "running" : "not running");
 		if (!running) break;
 	}
 }
@@ -495,7 +489,7 @@ void customParameterDrawing(int threadId)
 // 	}
 // }
 
-DWORD WINAPI ThreadFunc(void *data)
+DWORD WINAPI threadWork(void *data)
 {
 	// https://stackoverflow.com/questions/1981459/using-threads
 	//     -in-c-on-windows-simple-example
@@ -504,15 +498,49 @@ DWORD WINAPI ThreadFunc(void *data)
 	// the thread goes away. See MSDN for more details.
 
 	int threadId = threadNumber;
-	printf(" starting thread %i", threadId);
+	printf(" Starting thread %i", threadId);
 	threadsStarted++;
 	//inputFloat("thread paused", 0);
 	customParameterDrawing(threadId);
 	// drawCone(threadId);
 
-	printf(" stopping thread %i", threadId);
+	printf(" Stopping thread %i", threadId);
 	threadsStopped++;
 	return 0;
+}
+
+void doThreadedWork()
+{
+	threadsStarted = 0;
+	threadsStopped = 0;
+	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
+	{
+		// create x threads
+		HANDLE thread = CreateThread(NULL, 0, threadWork, NULL, 0, NULL);
+		if (thread)
+		{
+			while (threadsStarted <= threadNumber)
+			{
+				// wait until thread has assigned threadNumber id
+				printf("\%");
+			}
+			printf("have thread %i ", threadNumber);
+		}
+		else
+		{
+			printf("no thread %i ", threadNumber);
+			return;
+		}
+	}
+
+	printf("%i threads started. ", threadsStarted);
+
+	while (threadsStopped < THREADCOUNT)
+	{
+		// TODO won't quit if a thread (handle) wasn't created above
+		Sleep(1);
+		if (!running) break;
+	}
 }
 
 void uiLoop()
@@ -538,36 +566,7 @@ void uiLoop()
 
 		clock_t start = clock();
 
-		threadsStarted = 0;
-		threadsStopped = 0;
-		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
-		{
-			// create x threads
-			HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
-			if (thread)
-			{
-				while (threadsStarted <= threadNumber)
-				{
-					// wait until thread has assigned threadNumber id
-					printf("\%");
-				}
-				printf("have thread %i ", threadNumber);
-			}
-			else
-			{
-				printf("no thread %i ", threadNumber);
-				return;
-			}
-		}
-
-		printf("%i threads started. ", threadsStarted);
-
-		while (threadsStopped < THREADCOUNT)
-		{
-			// TODO won't quit if a thread (handle) wasn't created above
-			Sleep(10);
-			if (!running) break;
-		}
+		doThreadedWork();
 
 		double cpuTimeUsed = (double)(clock() - start)/CLOCKS_PER_SEC;
 		printf("\nPixel interactions: %.3f M pixels in %.3f seconds, %.3f G pix/sec.\n",
@@ -639,36 +638,7 @@ void nonUi(int argc, char *argv[])
 	// loadTool("smooth2550.tif", 0x477a0);
 	// loadTool("cone1023.tif", 0x48da);
 
-	threadsStarted = 0;
-	threadsStopped = 0;
-	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
-	{
-		// create x threads
-		HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
-		if (thread)
-		{
-			// got a handle
-			while (threadsStarted < threadNumber)
-			{
-				printf("?");
-				// wait until thread has presented itself as alive
-				Sleep(1);
-			}
-		}
-		else
-		{
-			printf("no thread %i", threadNumber);
-		}
-	}
-
-	printf("all threads active");
-
-	while (threadsStopped < threadsStarted)
-	{
-		printf(".");
-		Sleep(1);
-		if (!running) break;
-	}
+	doThreadedWork();
 
 	finish();
 }
