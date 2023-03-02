@@ -4,9 +4,10 @@
 #include <time.h>
 
 //--------------------------------------------------------------------
-#define PI 3.1415926535897932384626433832795
-#define TWOPI 6.283185307179586476925286766559
-#define BDEPTH unsigned short
+#define PI     3.1415926535897932384626433832795
+#define TWOPI  6.283185307179586476925286766559
+#define USHORT unsigned short
+#define ULONG  unsigned long
 
 //--------------------------------------------------------------------
 #define THREADCOUNT 12
@@ -16,37 +17,30 @@
 #define TOOLSIZE 255
 
 //--------------------------------------------------------------------
-// #define WIDTH 16384
-// #define HEIGHT 16384
-// #define RESAMPLE_DIVISOR 4
-#define WIDTH 4096
-#define HEIGHT 4096
-#define RESAMPLE_DIVISOR 1
-
-// 4k
-#define IMAGE_HEADER_SIZE 0x449A          /* same 4k or 8k                  */
-#define IMAGE_FOOTER_SIZE 46              /* 47 for 8k?                     */
-#define IMAGE_FOOTER_ADDRESS 0x200449A    /* 200449A for 4k, 800449A for 8k */
-#define TIF_FORMAT_FILE "4kx4kx1x16b.tif" /* header and footer              */
-// 1k
-
+USHORT width;              // = 4096;
+USHORT height;             // = 4096;
+USHORT resampleDivisor;    // = 1;
+USHORT imageHeaderSize;    // = 0x449A;            /* same 4k or 8k                  */
+USHORT imageFooterSize;    // = 46;                /* 47 for 8k?                     */
+ULONG imageFooterAddress;  // = 0x200449A;         /* 200449A for 4k, 800449A for 8k */
+char tifFormatFile[20];    // = "4kx4kx1x16b.tif"; /* header and footer              */
 
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
 // https://stackoverflow.com/questions/22945647/why-does-a-
 //		large-local-array-crash-my-program-but-a-global-one-doesnt
-char imageHeader[IMAGE_HEADER_SIZE];
-char imageFooter[IMAGE_FOOTER_SIZE]; 
+char imageHeader[1048576];
+char imageFooter[1048576]; 
 //--------------------------------------------------------------------
 
-BDEPTH image[WIDTH * HEIGHT];
-BDEPTH imageFinal[WIDTH * HEIGHT / (RESAMPLE_DIVISOR * RESAMPLE_DIVISOR)];
-BDEPTH tool[TOOLSIZE * TOOLSIZE];
+USHORT image[16384 * 16384];      // 16k x 16k x 16 bits per pixel = 512 MB
+USHORT imageFinal[16384 * 16384]; // 16k x 16k x 16 bits per pixel = 512 MB
+USHORT tool[TOOLSIZE * TOOLSIZE];
 
 BOOL running = TRUE;
 BOOL threads[THREADCOUNT];
 int threadNumber;
-unsigned long pixelInteractions = 0;
+ULONG pixelInteractions = 0;
 
 typedef struct Parameters
 {
@@ -76,12 +70,12 @@ ParameterSet pSet =
 	.teethCountFixed = 0
 };
 
-void wipe(BDEPTH *img, unsigned long elements)
+void wipe(USHORT *img, ULONG elements)
 {
-	for (unsigned long i = 0; i < elements; i++) img[i] = -1;
+	for (ULONG i = 0; i < elements; i++) img[i] = -1;
 }
 
-void load(char *name, unsigned long headerSize, BDEPTH *img, size_t size)
+void load(char *name, ULONG headerSize, USHORT *img, size_t size)
 {
 	FILE *ptr;
 	ptr = fopen(name, "rb");
@@ -90,19 +84,19 @@ void load(char *name, unsigned long headerSize, BDEPTH *img, size_t size)
 	fclose(ptr);
 }
 
-void save(char *name, BDEPTH *img, size_t size)
+void save(char *name, USHORT *img)
 {
 	FILE *ptr;
-	ptr = fopen(TIF_FORMAT_FILE, "rb");
-	fread(imageHeader, sizeof(imageHeader), 1, ptr);
-	fseek(ptr, IMAGE_FOOTER_ADDRESS, SEEK_SET);
-	fread(imageFooter, sizeof(imageFooter), 1, ptr);
+	ptr = fopen(tifFormatFile, "rb");
+	fread(imageHeader, imageHeaderSize, 1, ptr);
+	fseek(ptr, imageFooterAddress, SEEK_SET);
+	fread(imageFooter, imageFooterSize, 1, ptr);
 	fclose(ptr);
 
 	ptr = fopen(name, "wb");
-	fwrite(imageHeader, sizeof(imageHeader), 1, ptr);
-	fwrite(img, size, 1, ptr);
-	fwrite(imageFooter, sizeof(imageFooter), 1, ptr);
+	fwrite(imageHeader, imageHeaderSize, 1, ptr);
+	fwrite(img, width*height*2, 1, ptr); // 16 bits per pixel
+	fwrite(imageFooter, imageFooterSize, 1, ptr);
 	fclose(ptr);
 }
 
@@ -128,41 +122,41 @@ float inputFloat(char *text, float value)
 		{return value;}
 }
 
-BDEPTH getPixel(BDEPTH *img, int w, int x, int y)
+USHORT getPixel(USHORT *img, int w, int x, int y)
 {
 	return img[w * y + x];
 }
 
-void setPixel(BDEPTH *img, int w, int x, int y, BDEPTH p)
+void setPixel(USHORT *img, int w, int x, int y, USHORT p)
 {
 	img[w * y + x] = p;
 }
 
-void resample(BDEPTH *img, BDEPTH *imgResized)
+void resample(USHORT *img, USHORT *imgResized)
 {
-	int targetHeight = HEIGHT / RESAMPLE_DIVISOR;
-	int targetWidth = WIDTH / RESAMPLE_DIVISOR;
-	unsigned long p;
+	int targetHeight = height / resampleDivisor;
+	int targetWidth = width / resampleDivisor;
+	ULONG p;
 	int x, y, n, o;
 	for (y = 0; y < targetHeight; y++)
 	{
 		for (x = 0; x < targetWidth; x++)
 		{
 			p = 0;
-			for (o = 0; o < RESAMPLE_DIVISOR; o++)
+			for (o = 0; o < resampleDivisor; o++)
 			{
-				for (n = 0; n < RESAMPLE_DIVISOR; n++)
+				for (n = 0; n < resampleDivisor; n++)
 				{
-					p += getPixel(img, WIDTH, x * RESAMPLE_DIVISOR + n, y * RESAMPLE_DIVISOR + o);
+					p += getPixel(img, width, x * resampleDivisor + n, y * resampleDivisor + o);
 				}
 			}
-			p /= RESAMPLE_DIVISOR * RESAMPLE_DIVISOR;
+			p /= resampleDivisor * resampleDivisor;
 			imgResized[targetWidth * y + x] = p;
 		}
 	}
 }
 
-BDEPTH minimum(unsigned int a, unsigned int b)
+USHORT minimum(unsigned int a, unsigned int b)
 {
 	return a < b ? a : b;
 }
@@ -172,13 +166,13 @@ float limit(float a)
 	return a < 0 ? 0 : a > 1 ? 1 : a;
 }
 
-void cut(BDEPTH *img, BDEPTH *tool, int x, int y, BDEPTH depth)
+void cut(USHORT *img, USHORT *tool, int x, int y, USHORT depth)
 {
 	int toolX, toolY;
 	int imageX, imageY;
-	BDEPTH pImage = 0;
-	BDEPTH pTool = 0;
-	BDEPTH pFinal = 0;
+	USHORT pImage = 0;
+	USHORT pTool = 0;
+	USHORT pFinal = 0;
 	for (toolY = 0; toolY < TOOLSIZE; toolY++)
 	{
 		for (toolX = 0; toolX < TOOLSIZE; toolX++)
@@ -187,42 +181,42 @@ void cut(BDEPTH *img, BDEPTH *tool, int x, int y, BDEPTH depth)
 			imageY = y - ((TOOLSIZE - 1) / 2) + toolY;
 
 			if (imageX < 0) continue;
-			if (imageX >= WIDTH) continue;
+			if (imageX >= width) continue;
 			if (imageY < 0) continue;
-			if (imageY >= HEIGHT) continue;
+			if (imageY >= height) continue;
 
 			pTool = getPixel(tool, TOOLSIZE, toolX, toolY);
-			pImage = getPixel(img, WIDTH, imageX, imageY);
+			pImage = getPixel(img, width, imageX, imageY);
 			pFinal = minimum(pTool + depth, pImage);
-			setPixel(img, WIDTH, imageX, imageY, pFinal);
+			setPixel(img, width, imageX, imageY, pFinal);
 		}
 	}
 	pixelInteractions += pow(TOOLSIZE, 2) * 3;
 }
 
-void cutFloat(BDEPTH *img, BDEPTH *tool, float x, float y, float depth)
+void cutFloat(USHORT *img, USHORT *tool, float x, float y, float depth)
 {
-	int halfX = WIDTH / 2;
-	int halfY = HEIGHT / 2;
-	int imageX = halfX + (x * (float) WIDTH / 2);
-	int imageY = HEIGHT - (halfY + (y * (float) HEIGHT / 2));
-	BDEPTH depthInt = 0xFFFF - (limit(depth) * 0xFFFF);
+	int halfX = width / 2;
+	int halfY = height / 2;
+	int imageX = halfX + (x * (float) width / 2);
+	int imageY = height - (halfY + (y * (float) height / 2));
+	USHORT depthInt = 0xFFFF - (limit(depth) * 0xFFFF);
 	cut(img, tool, imageX, imageY, depthInt);
 }
 
 void finish()
 {
-	if (RESAMPLE_DIVISOR > 1)
+	if (resampleDivisor > 1)
 	{
 		printf("resampling...\n");
 		resample(image, imageFinal);
 		printf("saving...\n");
-		save("C:\\Temp\\out.tif", imageFinal, sizeof(imageFinal));
+		save("C:\\Temp\\out.tif", imageFinal);
 	}
 	else
 	{
 		printf("saving...\n");
-		save("C:\\Temp\\out.tif", image, sizeof(image));
+		save("C:\\Temp\\out.tif", image);
 	}
 	//system("C:\\Temp\\out.tif"); // open the .tif
 	printf("done\n");
@@ -239,7 +233,7 @@ BOOL WINAPI ctrlCHandler(DWORD signal)
     return TRUE;
 }
 
-BOOL notThisThread(int threadId, unsigned long cutCounter)
+BOOL notThisThread(int threadId, ULONG cutCounter)
 {
 	// Perfectly divide the cutting
 	// tasks over the number of threads (12).
@@ -263,7 +257,7 @@ void inputParameters()
 
 void concentricWobbleSpiral(int threadId)
 {
-	unsigned long cutCounter = 0;
+	ULONG cutCounter = 0;
 	float wheel1Rotation;
 	float wheel1Size;
 	float teethDensityRelative;
@@ -282,7 +276,7 @@ void concentricWobbleSpiral(int threadId)
 	{
 		printf("wheel %d...", wheelNumber);
 		wheel1Size = 1.0 / wheelCount * wheelNumber;
-		wheel1Teeth = PI * WIDTH * wheel1Size * teethDensityRelative;
+		wheel1Teeth = PI * width * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
 		spiral = 0-wheelNumber/5.0;
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
@@ -304,7 +298,7 @@ void concentricWobbleSpiral(int threadId)
 
 void sunburst(int threadId)
 {
-	unsigned long cutCounter = 0;
+	ULONG cutCounter = 0;
 	float waves = 0;
 	float spiral = 0;
 	float depthA = 0.0/8; // depth = ax + b
@@ -324,7 +318,7 @@ void sunburst(int threadId)
 		wheel1Size = wheel1SizeMax / wheelCount * wheelNumber;
 		wheel1Teeth = teethCountFixed > 0
 			? teethCountFixed
-			: PI * WIDTH * wheel1Size * teethDensityRelative;
+			: PI * width * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
 		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
@@ -345,7 +339,7 @@ void sunburst(int threadId)
 
 void overlappingCircles(int threadId)
 {
-	unsigned long cutCounter = 0;
+	ULONG cutCounter = 0;
 	float waves = 0;
 	float spiral = 0;
 	float depthA = 7.0/8; // depth = ax
@@ -365,7 +359,7 @@ void overlappingCircles(int threadId)
 		wheel1Size = 0.4; //wheel1SizeMax / wheelCount * wheelNumber;
 		wheel1Teeth = teethCountFixed > 0
 			? teethCountFixed
-			: PI * WIDTH * wheel1Size * teethDensityRelative;
+			: PI * width * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
 		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
 		float wheelCenterOffset = 0.4;
@@ -403,7 +397,7 @@ void customParameterDrawing(int threadId)
 	float teethDensityRelative = pSet.teethDensityRelative;
 	int teethCountFixed = pSet.teethCountFixed;
 
-	unsigned long cutCounter = 0;
+	ULONG cutCounter = 0;
 	float wheel1Rotation;
 	float wheel1Size;
 	int wheel1Teeth;
@@ -415,7 +409,7 @@ void customParameterDrawing(int threadId)
 		wheel1Size = wheel1SizeA*(wheelNumber/wheelCount)+wheel1SizeB;
 		wheel1Teeth = teethCountFixed > 0
 			? teethCountFixed
-			: PI * WIDTH * wheel1Size * teethDensityRelative;
+			: PI * width * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
 		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
 		float wheelCenterX = cos(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
@@ -448,19 +442,19 @@ void customParameterDrawing(int threadId)
 // 	float teethDensityRelative = 16;
 // 	int teethCountFixed = 0;
 
-// 	unsigned long cutCounter = 0;
+// 	ULONG cutCounter = 0;
 // 	float wheel1Rotation;
 // 	float wheel1Size;
 // 	int wheel1Teeth;
 // 	float wheel1Tooth;
 // 	int wheelNumber;
 
-// 	BDEPTH halfX;
-// 	BDEPTH halfY;
-// 	BDEPTH imageX;
-// 	BDEPTH imageY;
-// 	halfX = (BDEPTH) (WIDTH / 2);
-// 	halfY = (BDEPTH) (HEIGHT / 2);
+// 	USHORT halfX;
+// 	USHORT halfY;
+// 	USHORT imageX;
+// 	USHORT imageY;
+// 	halfX = (USHORT) (width / 2);
+// 	halfY = (USHORT) (height / 2);
 
 // 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 // 	{
@@ -468,7 +462,7 @@ void customParameterDrawing(int threadId)
 // 		wheel1Size = wheel1SizeA*(wheelNumber/wheelCount)+wheel1SizeB;
 // 		wheel1Teeth = teethCountFixed > 0
 // 			? teethCountFixed
-// 			: PI * WIDTH * wheel1Size * teethDensityRelative;
+// 			: PI * width * wheel1Size * teethDensityRelative;
 // 		wheel1Tooth = TWOPI / wheel1Teeth;
 // 		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
 // 		float wheelCenterX = cos(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
@@ -479,10 +473,10 @@ void customParameterDrawing(int threadId)
 // 			if (notThisThread(threadId, cutCounter)) continue;
 // 			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
 // 			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
-// 			imageX = halfX + (BDEPTH) (cutX * (float) WIDTH / 2);
-// 			imageY = HEIGHT - (halfY + (BDEPTH) (cutY * (float) HEIGHT / 2));
-// 			BDEPTH p = (BDEPTH) (0xFFFF*(wheelNumber-1)/wheelCount);
-// 			setPixel(image, WIDTH, imageX, imageY, p);
+// 			imageX = halfX + (USHORT) (cutX * (float) width / 2);
+// 			imageY = height - (halfY + (USHORT) (cutY * (float) height / 2));
+// 			USHORT p = (USHORT) (0xFFFF*(wheelNumber-1)/wheelCount);
+// 			setPixel(image, width, imageX, imageY, p);
 // 			if (!running) break;
 // 		}
 // 		//printf(" ");
@@ -516,7 +510,7 @@ void uiLoop()
 		// present UI
 		inputParameters();
 
-		wipe(image, WIDTH * HEIGHT);
+		wipe(image, width * height);
 		load("cone255.tif", 0x4768, tool, sizeof(tool));
 		// load("cone511d.tif", 0x48ac, tool, sizeof(tool));
 		// load("cone511d-softer.tif", 0x48fa, tool, sizeof(tool));
@@ -574,7 +568,54 @@ void nonUi(int argc, char *argv[])
 	pSet.teethDensityRelative = atof(argv[9]);
 	pSet.teethCountFixed = atoi(argv[10]);
 
-	wipe(image, WIDTH * HEIGHT);
+	// //--------------------------------------------------------------------
+	// // #define width 16384
+	// // #define height 16384
+	// // #define resampleDivisor 4
+	// #define width 4096
+	// #define height 4096
+	// #define resampleDivisor 1
+
+	// // 4k
+	// #define IMAGE_HEADER_SIZE 0x449A          /* same 4k or 8k                  */
+	// #define IMAGE_FOOTER_SIZE 46              /* 47 for 8k?                     */
+	// #define imageFooterAddress 0x200449A    /* 200449A for 4k, 800449A for 8k */
+	// #define tifFormatFile "4kx4kx1x16b.tif" /* header and footer              */
+	// // 1k
+	if (strcmp(argv[11], "1k") == 0)
+	{
+		width              = 1024;
+		height             = 1024;
+		resampleDivisor    = 1;
+		imageHeaderSize    = 0x449A;
+		imageFooterSize    = 46;
+		imageFooterAddress = 0x20449A;
+		strcpy(tifFormatFile, "1kx1kx1x16b.tif");
+	}
+
+	if (strcmp(argv[11], "4k") == 0)
+	{
+		width              = 4096;
+		height             = 4096;
+		resampleDivisor    = 1;
+		imageHeaderSize    = 0x449A;
+		imageFooterSize    = 46;
+		imageFooterAddress = 0x200449A;
+		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
+	}
+
+	if (strcmp(argv[11], "downsampled_4k") == 0)
+	{
+		width              = 16384;
+		height             = 16384;
+		resampleDivisor    = 4;
+		imageHeaderSize    = 0x449A;
+		imageFooterSize    = 46;
+		imageFooterAddress = 0x200449A;
+		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
+	}
+
+	wipe(image, width * height);
 	load("cone255.tif", 0x4768, tool, sizeof(tool));
 	// load("cone511d.tif", 0x48ac, tool, sizeof(tool));
 	// load("cone511d-softer.tif", 0x48fa, tool, sizeof(tool));
