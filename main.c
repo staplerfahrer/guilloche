@@ -35,10 +35,13 @@ USHORT image[16384 * 16384];      // 16k x 16k x 2 bytes per pixel = 512 MB
 USHORT imageFinal[16384 * 16384]; // 16k x 16k x 2 bytes per pixel = 512 MB
 USHORT tool[1023*1023];
 
-BOOL running = TRUE;
-BOOL threads[THREADCOUNT];
-int threadNumber;
 ULONG pixelInteractions = 0;
+
+//--------------------------------------------------------------------
+BOOL running = TRUE;
+int threadNumber;
+int threadsStarted;
+int threadsStopped;
 
 typedef struct Parameters
 {
@@ -494,12 +497,12 @@ DWORD WINAPI ThreadFunc(void *data)
 
 	int threadId = threadNumber;
 	printf(" starting thread %i", threadId);
-	threads[threadId] = TRUE;
+	threadsStarted++;
 	customParameterDrawing(threadId);
 	// drawCone(threadId);
 
 	printf(" stopping thread %i", threadId);
-	threads[threadId] = FALSE;
+	threadsStopped++;
 	return 0;
 }
 
@@ -522,27 +525,34 @@ void uiLoop()
 
 		clock_t start = clock();
 
+		threadsStarted = 0;
+		threadsStopped = 0;
 		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 		{
+			// create x threads
 			HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
 			if (thread)
 			{
-				while (!threads[threadNumber])
+				// got a handle
+				while (threadsStarted < threadNumber)
 				{
+					printf("?");
+					// wait until thread has presented itself as alive
 					Sleep(1);
 				}
 			}
+			else
+			{
+				printf("no thread %i", threadNumber);
+			}
 		}
 
-		BOOL threadsActive = TRUE;
-		while (threadsActive)
+		printf("all threads active");
+
+		while (threadsStopped > 0)
 		{
+			printf(".");
 			Sleep(1);
-			threadsActive = FALSE;
-			for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
-			{
-				threadsActive |= threads[threadNumber];
-			}
 			if (!running) break;
 		}
 
@@ -617,6 +627,8 @@ void nonUi(int argc, char *argv[])
 	// loadTool("smooth2550.tif", 0x477a0);
 	// loadTool("cone1023.tif", 0x48da);
 
+	threadsStarted = 0;
+	threadsStopped = 0;
 	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 	{
 		// create x threads
@@ -624,7 +636,7 @@ void nonUi(int argc, char *argv[])
 		if (thread)
 		{
 			// got a handle
-			while (!threads[threadNumber])
+			while (threadsStarted < threadNumber)
 			{
 				printf("?");
 				// wait until thread has presented itself as alive
@@ -639,16 +651,10 @@ void nonUi(int argc, char *argv[])
 
 	printf("all threads active");
 
-	BOOL threadsActive = TRUE;
-	while (threadsActive)
+	while (threadsStopped < threadsStarted)
 	{
 		printf(".");
 		Sleep(1);
-		threadsActive = FALSE;
-		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
-		{
-			threadsActive |= threads[threadNumber];
-		}
 		if (!running) break;
 	}
 
