@@ -13,10 +13,6 @@
 #define THREADCOUNT 12
 
 //--------------------------------------------------------------------
-// #define TOOLSIZE 1023
-#define TOOLSIZE 255
-
-//--------------------------------------------------------------------
 USHORT width;              // = 4096;
 USHORT height;             // = 4096;
 USHORT resampleDivisor;    // = 1;
@@ -24,6 +20,7 @@ USHORT imageHeaderSize;    // = 0x449A;            /* same 4k or 8k             
 USHORT imageFooterSize;    // = 46;                /* 47 for 8k?                     */
 ULONG imageFooterAddress;  // = 0x200449A;         /* 200449A for 4k, 800449A for 8k */
 char tifFormatFile[20];    // = "4kx4kx1x16b.tif"; /* header and footer              */
+USHORT toolSize;
 
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
@@ -35,7 +32,7 @@ char imageFooter[1048576];
 
 USHORT image[16384 * 16384];      // 16k x 16k x 16 bits per pixel = 512 MB
 USHORT imageFinal[16384 * 16384]; // 16k x 16k x 16 bits per pixel = 512 MB
-USHORT tool[TOOLSIZE * TOOLSIZE];
+USHORT tool[1023*1023];
 
 BOOL running = TRUE;
 BOOL threads[THREADCOUNT];
@@ -75,12 +72,12 @@ void wipe(USHORT *img, ULONG elements)
 	for (ULONG i = 0; i < elements; i++) img[i] = -1;
 }
 
-void load(char *name, ULONG headerSize, USHORT *img, size_t size)
+void loadTool(char *name, ULONG headerSize, USHORT *img)
 {
 	FILE *ptr;
 	ptr = fopen(name, "rb");
 	fseek(ptr, headerSize, SEEK_SET);
-	fread(img, size, 1, ptr);
+	fread(img, toolSize*toolSize*2, 1, ptr); // W x H x 2 bytes per pixel
 	fclose(ptr);
 }
 
@@ -173,25 +170,25 @@ void cut(USHORT *img, USHORT *tool, int x, int y, USHORT depth)
 	USHORT pImage = 0;
 	USHORT pTool = 0;
 	USHORT pFinal = 0;
-	for (toolY = 0; toolY < TOOLSIZE; toolY++)
+	for (toolY = 0; toolY < toolSize; toolY++)
 	{
-		for (toolX = 0; toolX < TOOLSIZE; toolX++)
+		for (toolX = 0; toolX < toolSize; toolX++)
 		{
-			imageX = x - ((TOOLSIZE - 1) / 2) + toolX;
-			imageY = y - ((TOOLSIZE - 1) / 2) + toolY;
+			imageX = x - ((toolSize - 1) / 2) + toolX;
+			imageY = y - ((toolSize - 1) / 2) + toolY;
 
 			if (imageX < 0) continue;
 			if (imageX >= width) continue;
 			if (imageY < 0) continue;
 			if (imageY >= height) continue;
 
-			pTool = getPixel(tool, TOOLSIZE, toolX, toolY);
+			pTool = getPixel(tool, toolSize, toolX, toolY);
 			pImage = getPixel(img, width, imageX, imageY);
 			pFinal = minimum(pTool + depth, pImage);
 			setPixel(img, width, imageX, imageY, pFinal);
 		}
 	}
-	pixelInteractions += pow(TOOLSIZE, 2) * 3;
+	pixelInteractions += pow(toolSize, 2) * 3;
 }
 
 void cutFloat(USHORT *img, USHORT *tool, float x, float y, float depth)
@@ -511,12 +508,12 @@ void uiLoop()
 		inputParameters();
 
 		wipe(image, width * height);
-		load("cone255.tif", 0x4768, tool, sizeof(tool));
-		// load("cone511d.tif", 0x48ac, tool, sizeof(tool));
-		// load("cone511d-softer.tif", 0x48fa, tool, sizeof(tool));
-		// load("cone255-maxed.tif", 0x48d2, tool, sizeof(tool));
-		// load("smooth2550.tif", 0x477a0, tool, sizeof(tool));
-		// load("cone1023.tif", 0x48da, tool, sizeof(tool));
+		loadTool("cone255.tif", 0x4768, tool);
+		// loadTool("cone511d.tif", 0x48ac, tool);
+		// loadTool("cone511d-softer.tif", 0x48fa, tool);
+		// loadTool("cone255-maxed.tif", 0x48d2, tool);
+		// loadTool("smooth2550.tif", 0x477a0, tool);
+		// loadTool("cone1023.tif", 0x48da, tool);
 
 		clock_t start = clock();
 
@@ -591,6 +588,8 @@ void nonUi(int argc, char *argv[])
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x20449A;
 		strcpy(tifFormatFile, "1kx1kx1x16b.tif");
+		toolSize = 63;
+		loadTool("cone63.tif", 0x444C, tool);
 	}
 
 	if (strcmp(argv[11], "4k") == 0)
@@ -602,6 +601,8 @@ void nonUi(int argc, char *argv[])
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
+		toolSize = 255;
+		loadTool("cone255.tif", 0x4768, tool);
 	}
 
 	if (strcmp(argv[11], "downsampled_4k") == 0)
@@ -613,15 +614,17 @@ void nonUi(int argc, char *argv[])
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
+		toolSize = 255;
+		loadTool("cone255.tif", 0x4768, tool);
+		// loadTool("cone1023.tif", 0x48da, tool);
 	}
 
 	wipe(image, width * height);
-	load("cone255.tif", 0x4768, tool, sizeof(tool));
-	// load("cone511d.tif", 0x48ac, tool, sizeof(tool));
-	// load("cone511d-softer.tif", 0x48fa, tool, sizeof(tool));
-	// load("cone255-maxed.tif", 0x48d2, tool, sizeof(tool));
-	// load("smooth2550.tif", 0x477a0, tool, sizeof(tool));
-	// load("cone1023.tif", 0x48da, tool, sizeof(tool));
+	// loadTool("cone511d.tif", 0x48ac, tool);
+	// loadTool("cone511d-softer.tif", 0x48fa, tool);
+	// loadTool("cone255-maxed.tif", 0x48d2, tool);
+	// loadTool("smooth2550.tif", 0x477a0, tool);
+	// loadTool("cone1023.tif", 0x48da, tool);
 
 	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 	{
