@@ -105,6 +105,7 @@ int inputInt(char *text, int value)
 {
 	printf("%s [%d]: ", text, value);
 	char inp[20];
+	// TODO handle CTRL+C
 	fgets(inp, 20, stdin);
 	if (strlen(inp) > 1) //??
 		{return atol(inp);}
@@ -116,6 +117,7 @@ float inputFloat(char *text, float value)
 {
 	printf("%s [%f]: ", text, value);
 	char inp[20];
+	// TODO handle CTRL+C
 	fgets(inp, 20, stdin);
 	if (strlen(inp) > 1) //??
 		{return atof(inp);}
@@ -227,10 +229,10 @@ void finish()
 
 BOOL WINAPI ctrlCHandler(DWORD signal)
 {
-	printf("%d", signal);
+	printf("signal %d ", signal);
     if (signal == CTRL_C_EVENT)
 	{
-        printf("\nCtrl-C handled\n");
+        printf("Ctrl-C handled\n");
 		running = FALSE;
 	}
     return TRUE;
@@ -239,23 +241,24 @@ BOOL WINAPI ctrlCHandler(DWORD signal)
 BOOL notThisThread(int threadId, ULONG cutCounter)
 {
 	// Perfectly divide the cutting
-	// tasks over the number of threads (12).
+	// tasks over the number of threads (THREADCOUNT).
 	// cutCounter % THREADCOUNT = 0..11
+	//printf("cutCounter %i THREADCOUNT %i threadId %i", cutCounter, THREADCOUNT, threadId);
 	return cutCounter % THREADCOUNT != threadId;
 }
 
-void inputParameters()
+void parameterUi()
 {
-	pSet.waves                = inputFloat("waves", pSet.waves);
-	pSet.spiral               = inputFloat("spiral", pSet.spiral);
-	pSet.depthA               = inputFloat("depthA", pSet.depthA);
-	pSet.depthB               = inputFloat("depthB", pSet.depthB);
-	pSet.wheel1SizeA          = inputFloat("wheel1SizeA", pSet.wheel1SizeA);
-	pSet.wheel1SizeB          = inputFloat("wheel1SizeB", pSet.wheel1SizeB);
-	pSet.wheelCenterOffset    = inputFloat("wheelCenterOffset", pSet.wheelCenterOffset);
-	pSet.wheelCount           = inputFloat("wheelCount", pSet.wheelCount);
-	pSet.teethDensityRelative = inputFloat("teethDensityRelative", pSet.teethDensityRelative);
-	pSet.teethCountFixed      = inputInt("teethCountFixed", pSet.teethCountFixed);
+	pSet.waves                = inputFloat("1/10  waves", pSet.waves);
+	pSet.spiral               = inputFloat("2/10  spiral", pSet.spiral);
+	pSet.depthA               = inputFloat("3/10  depthA", pSet.depthA);
+	pSet.depthB               = inputFloat("4/10  depthB", pSet.depthB);
+	pSet.wheel1SizeA          = inputFloat("5/10  wheel1SizeA", pSet.wheel1SizeA);
+	pSet.wheel1SizeB          = inputFloat("6/10  wheel1SizeB", pSet.wheel1SizeB);
+	pSet.wheelCenterOffset    = inputFloat("7/10  wheelCenterOffset", pSet.wheelCenterOffset);
+	pSet.wheelCount           = inputFloat("8/10  wheelCount", pSet.wheelCount);
+	pSet.teethDensityRelative = inputFloat("9/10  teethDensityRelative", pSet.teethDensityRelative);
+	pSet.teethCountFixed      = inputInt(  "10/10 teethCountFixed", pSet.teethCountFixed);
 }
 
 void concentricWobbleSpiral(int threadId)
@@ -277,7 +280,7 @@ void concentricWobbleSpiral(int threadId)
 	teethDensityRelative = 0.1;
 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
-		printf("wheel %d...", wheelNumber);
+		printf("wheel %d... ", wheelNumber);
 		wheel1Size = 1.0 / wheelCount * wheelNumber;
 		wheel1Teeth = PI * width * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
@@ -408,7 +411,7 @@ void customParameterDrawing(int threadId)
 	int   wheelNumber;
 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
-		printf("t %d w %d...", threadId, wheelNumber);
+		printf("t %d w %d... ", threadId, wheelNumber);
 		wheel1Size  = wheel1SizeA*(wheelNumber/wheelCount)+wheel1SizeB;
 		wheel1Teeth = teethCountFixed > 0
 			? teethCountFixed
@@ -420,14 +423,19 @@ void customParameterDrawing(int threadId)
 		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
 		{
 			cutCounter++;
-			if (notThisThread(threadId, cutCounter)) continue;
+			if (notThisThread(threadId, cutCounter)) 
+			{
+					printf("not ");
+
+				continue;
+			}
 			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
 			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
 			float depthX = sqrt(pow(fabs(cutX),2)+pow(fabs(cutY),2));
 			cutFloat(image, tool, cutX, cutY, depthA*depthX+depthB);
 			if (!running) break;
 		}
-		printf(" %s", running ? "running" : "not running");
+		printf("%s ", running ? "running" : "not running");
 		if (!running) break;
 	}
 }
@@ -498,6 +506,7 @@ DWORD WINAPI ThreadFunc(void *data)
 	int threadId = threadNumber;
 	printf(" starting thread %i", threadId);
 	threadsStarted++;
+	//inputFloat("thread paused", 0);
 	customParameterDrawing(threadId);
 	// drawCone(threadId);
 
@@ -512,16 +521,20 @@ void uiLoop()
 
 	while (running)
 	{
-		// present UI
-		inputParameters();
+		width              = 4096;
+		height             = 4096;
+		resampleDivisor    = 1;
+		imageHeaderSize    = 0x449A;
+		imageFooterSize    = 46;
+		imageFooterAddress = 0x200449A;
+		toolSize           = 255;
+		loadTool("cone255.tif", 0x4768);
+		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
 
 		wipe(image, width * height);
-		loadTool("cone255.tif", 0x4768);
-		// loadTool("cone511d.tif", 0x48ac);
-		// loadTool("cone511d-softer.tif", 0x48fa);
-		// loadTool("cone255-maxed.tif", 0x48d2);
-		// loadTool("smooth2550.tif", 0x477a0);
-		// loadTool("cone1023.tif", 0x48da);
+
+		// present UI
+		parameterUi();
 
 		clock_t start = clock();
 
@@ -533,26 +546,26 @@ void uiLoop()
 			HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
 			if (thread)
 			{
-				// got a handle
-				while (threadsStarted < threadNumber)
+				while (threadsStarted <= threadNumber)
 				{
-					printf("?");
-					// wait until thread has presented itself as alive
-					Sleep(1);
+					// wait until thread has assigned threadNumber id
+					printf("\%");
 				}
+				printf("have thread %i ", threadNumber);
 			}
 			else
 			{
-				printf("no thread %i", threadNumber);
+				printf("no thread %i ", threadNumber);
+				return;
 			}
 		}
 
-		printf("all threads active");
+		printf("%i threads started. ", threadsStarted);
 
-		while (threadsStopped > 0)
+		while (threadsStopped < THREADCOUNT)
 		{
-			printf(".");
-			Sleep(1);
+			// TODO won't quit if a thread (handle) wasn't created above
+			Sleep(10);
 			if (!running) break;
 		}
 
@@ -588,9 +601,9 @@ void nonUi(int argc, char *argv[])
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x20449A;
-		strcpy(tifFormatFile, "1kx1kx1x16b.tif");
-		toolSize = 63;
+		toolSize           = 63;
 		loadTool("cone63.tif", 0x444C);
+		strcpy(tifFormatFile, "1kx1kx1x16b.tif");
 	}
 
 	if (strcmp(argv[11], "4k") == 0)
@@ -601,9 +614,9 @@ void nonUi(int argc, char *argv[])
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
-		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
-		toolSize = 255;
+		toolSize           = 255;
 		loadTool("cone255.tif", 0x4768);
+		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
 	}
 
 	if (strcmp(argv[11], "downsampled_4k") == 0)
@@ -614,10 +627,9 @@ void nonUi(int argc, char *argv[])
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
+		toolSize           = 255;
+		loadTool("cone1023.tif", 0x48da);
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
-		toolSize = 255;
-		loadTool("cone255.tif", 0x4768);
-		// loadTool("cone1023.tif", 0x48da);
 	}
 
 	wipe(image, width * height);
