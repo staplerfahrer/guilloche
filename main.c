@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <math.h>
 #include <windows.h>
 #include <time.h>
@@ -208,13 +209,15 @@ void finish()
 		printf("resampling...\n");
 		resample(image, imageFinal);
 		printf("saving...\n");
-		save("C:\\Temp\\out.tif", imageFinal);
+		save("C:\\Temp\\out.temp", imageFinal);
 	}
 	else
 	{
 		printf("saving...\n");
-		save("C:\\Temp\\out.tif", image);
+		save("C:\\Temp\\out.temp", image);
 	}
+	remove("C:\\Temp\\out.tif");
+	rename("C:\\Temp\\out.temp", "C:\\Temp\\out.tif");
 	//system("C:\\Temp\\out.tif"); // open the .tif
 	printf("done\n");
 }
@@ -565,20 +568,6 @@ void nonUi(int argc, char *argv[])
 	pSet.teethDensityRelative = atof(argv[9]);
 	pSet.teethCountFixed = atoi(argv[10]);
 
-	// //--------------------------------------------------------------------
-	// // #define width 16384
-	// // #define height 16384
-	// // #define resampleDivisor 4
-	// #define width 4096
-	// #define height 4096
-	// #define resampleDivisor 1
-
-	// // 4k
-	// #define IMAGE_HEADER_SIZE 0x449A          /* same 4k or 8k                  */
-	// #define IMAGE_FOOTER_SIZE 46              /* 47 for 8k?                     */
-	// #define imageFooterAddress 0x200449A    /* 200449A for 4k, 800449A for 8k */
-	// #define tifFormatFile "4kx4kx1x16b.tif" /* header and footer              */
-	// // 1k
 	if (strcmp(argv[11], "1k") == 0)
 	{
 		width              = 1024;
@@ -659,8 +648,39 @@ int main(int argc, char *argv[])
 	{
 		uiLoop();
 	}
-	else
+	// else
+	// {
+	// 	nonUi(argc, argv);
+	// }
+	while (TRUE)
 	{
+		enum { kMaxArgs = 13, kLinelen = 80 };
+		char commandLine[kLinelen];
+		char pos = 0;
+		char ch;
+		while(TRUE)
+		{
+			if (read(STDIN_FILENO, &ch, 1) > 0)
+			{
+				if (ch == '\n') break;
+				commandLine[pos] = ch;
+				pos++;
+			}
+		}
+		commandLine[pos] = '\0';
+		if (strlen(commandLine) == 0) break;
+
+		int argc = 0;
+		char *argv[kMaxArgs];
+
+		char *p2 = strtok(commandLine, " ");
+		while (p2 && argc < kMaxArgs-1)
+		{
+			argv[argc++] = p2;
+			p2 = strtok(0, " ");
+		}
+		argv[argc] = 0;
+		printf("command line: %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[0],argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8],argv[9],argv[10],argv[11]);
 		nonUi(argc, argv);
 	}
 	return 0;
