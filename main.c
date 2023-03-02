@@ -11,28 +11,28 @@
 #define ULONG  unsigned long
 
 //--------------------------------------------------------------------
-#define THREADCOUNT 12
+#define THREADCOUNT 1
 
 //--------------------------------------------------------------------
-USHORT width;              // = 4096;
-USHORT height;             // = 4096;
-USHORT resampleDivisor;    // = 1;
-USHORT imageHeaderSize;    // = 0x449A;            /* same 4k or 8k                  */
-USHORT imageFooterSize;    // = 46;                /* 47 for 8k?                     */
-ULONG imageFooterAddress;  // = 0x200449A;         /* 200449A for 4k, 800449A for 8k */
-char tifFormatFile[20];    // = "4kx4kx1x16b.tif"; /* header and footer              */
+USHORT width;
+USHORT height;
+USHORT resampleDivisor;
+USHORT imageHeaderSize;
+USHORT imageFooterSize;
+ULONG imageFooterAddress;
+char tifFormatFile[20];
 USHORT toolSize;
 
+//--------------------------------------------------------------------
 // Keep global, or else it won't fit on the stack.
 // Alternatively, this:
 // https://stackoverflow.com/questions/22945647/why-does-a-
 //		large-local-array-crash-my-program-but-a-global-one-doesnt
 char imageHeader[1048576];
-char imageFooter[1048576]; 
-//--------------------------------------------------------------------
+char imageFooter[1048576];
 
-USHORT image[16384 * 16384];      // 16k x 16k x 16 bits per pixel = 512 MB
-USHORT imageFinal[16384 * 16384]; // 16k x 16k x 16 bits per pixel = 512 MB
+USHORT image[16384 * 16384];      // 16k x 16k x 2 bytes per pixel = 512 MB
+USHORT imageFinal[16384 * 16384]; // 16k x 16k x 2 bytes per pixel = 512 MB
 USHORT tool[1023*1023];
 
 BOOL running = TRUE;
@@ -73,12 +73,12 @@ void wipe(USHORT *img, ULONG elements)
 	for (ULONG i = 0; i < elements; i++) img[i] = -1;
 }
 
-void loadTool(char *name, ULONG headerSize, USHORT *img)
+void loadTool(char *name, ULONG headerSize)
 {
 	FILE *ptr;
 	ptr = fopen(name, "rb");
 	fseek(ptr, headerSize, SEEK_SET);
-	fread(img, toolSize*toolSize*2, 1, ptr); // W x H x 2 bytes per pixel
+	fread(tool, toolSize*toolSize*2, 1, ptr); // W x H x 2 bytes per pixel
 	fclose(ptr);
 }
 
@@ -93,7 +93,7 @@ void save(char *name, USHORT *img)
 
 	ptr = fopen(name, "wb");
 	fwrite(imageHeader, imageHeaderSize, 1, ptr);
-	fwrite(img, width*height*2, 1, ptr); // 16 bits per pixel
+	fwrite(img, width*height*2, 1, ptr); // 2 bytes per pixel
 	fwrite(imageFooter, imageFooterSize, 1, ptr);
 	fclose(ptr);
 }
@@ -185,7 +185,7 @@ void cut(USHORT *img, USHORT *tool, int x, int y, USHORT depth)
 
 			pTool = getPixel(tool, toolSize, toolX, toolY);
 			pImage = getPixel(img, width, imageX, imageY);
-			pFinal = minimum(pTool + depth, pImage);
+			pFinal = minimum(pTool + depth, pImage); // + causes unsigned int?
 			setPixel(img, width, imageX, imageY, pFinal);
 		}
 	}
@@ -243,16 +243,16 @@ BOOL notThisThread(int threadId, ULONG cutCounter)
 
 void inputParameters()
 {
-	pSet.waves = inputFloat("waves", pSet.waves);
-	pSet.spiral = inputFloat("spiral", pSet.spiral);
-	pSet.depthA = inputFloat("depthA", pSet.depthA);
-	pSet.depthB = inputFloat("depthB", pSet.depthB);
-	pSet.wheel1SizeA = inputFloat("wheel1SizeA", pSet.wheel1SizeA);
-	pSet.wheel1SizeB = inputFloat("wheel1SizeB", pSet.wheel1SizeB);
-	pSet.wheelCenterOffset = inputFloat("wheelCenterOffset", pSet.wheelCenterOffset);
-	pSet.wheelCount = inputFloat("wheelCount", pSet.wheelCount);
+	pSet.waves                = inputFloat("waves", pSet.waves);
+	pSet.spiral               = inputFloat("spiral", pSet.spiral);
+	pSet.depthA               = inputFloat("depthA", pSet.depthA);
+	pSet.depthB               = inputFloat("depthB", pSet.depthB);
+	pSet.wheel1SizeA          = inputFloat("wheel1SizeA", pSet.wheel1SizeA);
+	pSet.wheel1SizeB          = inputFloat("wheel1SizeB", pSet.wheel1SizeB);
+	pSet.wheelCenterOffset    = inputFloat("wheelCenterOffset", pSet.wheelCenterOffset);
+	pSet.wheelCount           = inputFloat("wheelCount", pSet.wheelCount);
 	pSet.teethDensityRelative = inputFloat("teethDensityRelative", pSet.teethDensityRelative);
-	pSet.teethCountFixed = inputInt("teethCountFixed", pSet.teethCountFixed);
+	pSet.teethCountFixed      = inputInt("teethCountFixed", pSet.teethCountFixed);
 }
 
 void concentricWobbleSpiral(int threadId)
@@ -386,27 +386,27 @@ void overlappingCircles(int threadId)
 
 void customParameterDrawing(int threadId)
 {
-	float waves = pSet.waves;
-	float spiral = pSet.spiral;
-	float depthA = pSet.depthA;
-	float depthB = pSet.depthB;
-	float wheel1SizeA = pSet.wheel1SizeA;
-	float wheel1SizeB = pSet.wheel1SizeB;
-	float wheelCenterOffset = pSet.wheelCenterOffset;
-	float wheelCount = pSet.wheelCount;
+	float waves                = pSet.waves;
+	float spiral               = pSet.spiral;
+	float depthA               = pSet.depthA;
+	float depthB               = pSet.depthB;
+	float wheel1SizeA          = pSet.wheel1SizeA;
+	float wheel1SizeB          = pSet.wheel1SizeB;
+	float wheelCenterOffset    = pSet.wheelCenterOffset;
+	float wheelCount           = pSet.wheelCount;
 	float teethDensityRelative = pSet.teethDensityRelative;
-	int teethCountFixed = pSet.teethCountFixed;
+	int   teethCountFixed      = pSet.teethCountFixed;
 
 	ULONG cutCounter = 0;
 	float wheel1Rotation;
 	float wheel1Size;
-	int wheel1Teeth;
+	int   wheel1Teeth;
 	float wheel1Tooth;
-	int wheelNumber;
+	int   wheelNumber;
 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
-		printf("%d: wheel %d...", threadId, wheelNumber);
-		wheel1Size = wheel1SizeA*(wheelNumber/wheelCount)+wheel1SizeB;
+		printf("t %d w %d...", threadId, wheelNumber);
+		wheel1Size  = wheel1SizeA*(wheelNumber/wheelCount)+wheel1SizeB;
 		wheel1Teeth = teethCountFixed > 0
 			? teethCountFixed
 			: PI * width * wheel1Size * teethDensityRelative;
@@ -424,7 +424,7 @@ void customParameterDrawing(int threadId)
 			cutFloat(image, tool, cutX, cutY, depthA*depthX+depthB);
 			if (!running) break;
 		}
-		printf(" ");
+		printf(" %s", running ? "running" : "not running");
 		if (!running) break;
 	}
 }
@@ -493,10 +493,12 @@ DWORD WINAPI ThreadFunc(void *data)
 	// the thread goes away. See MSDN for more details.
 
 	int threadId = threadNumber;
+	printf(" starting thread %i", threadId);
 	threads[threadId] = TRUE;
 	customParameterDrawing(threadId);
 	// drawCone(threadId);
 
+	printf(" stopping thread %i", threadId);
 	threads[threadId] = FALSE;
 	return 0;
 }
@@ -511,19 +513,19 @@ void uiLoop()
 		inputParameters();
 
 		wipe(image, width * height);
-		loadTool("cone255.tif", 0x4768, tool);
-		// loadTool("cone511d.tif", 0x48ac, tool);
-		// loadTool("cone511d-softer.tif", 0x48fa, tool);
-		// loadTool("cone255-maxed.tif", 0x48d2, tool);
-		// loadTool("smooth2550.tif", 0x477a0, tool);
-		// loadTool("cone1023.tif", 0x48da, tool);
+		loadTool("cone255.tif", 0x4768);
+		// loadTool("cone511d.tif", 0x48ac);
+		// loadTool("cone511d-softer.tif", 0x48fa);
+		// loadTool("cone255-maxed.tif", 0x48d2);
+		// loadTool("smooth2550.tif", 0x477a0);
+		// loadTool("cone1023.tif", 0x48da);
 
 		clock_t start = clock();
 
 		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 		{
 			HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
-			if (thread) 
+			if (thread)
 			{
 				while (!threads[threadNumber])
 				{
@@ -545,9 +547,9 @@ void uiLoop()
 		}
 
 		double cpuTimeUsed = (double)(clock() - start)/CLOCKS_PER_SEC;
-		printf("\nPixel interactions: %.3f M pixels in %.3f seconds, %.3f G pix/sec.\n", 
-			(double)pixelInteractions/1000000, 
-			cpuTimeUsed, 
+		printf("\nPixel interactions: %.3f M pixels in %.3f seconds, %.3f G pix/sec.\n",
+			(double)pixelInteractions/1000000,
+			cpuTimeUsed,
 			(double)pixelInteractions/cpuTimeUsed/1000000000);
 
 		finish();
@@ -557,16 +559,16 @@ void uiLoop()
 void nonUi(int argc, char *argv[])
 {
 	if (argc < 11) return;
-	pSet.waves = atof(argv[1]);
-	pSet.spiral = atof(argv[2]);
-	pSet.depthA = atof(argv[3]);
-	pSet.depthB = atof(argv[4]);
-	pSet.wheel1SizeA = atof(argv[5]);
-	pSet.wheel1SizeB = atof(argv[6]);
-	pSet.wheelCenterOffset = atof(argv[7]);
-	pSet.wheelCount = atof(argv[8]);
+	pSet.waves                = atof(argv[1]);
+	pSet.spiral               = atof(argv[2]);
+	pSet.depthA               = atof(argv[3]);
+	pSet.depthB               = atof(argv[4]);
+	pSet.wheel1SizeA          = atof(argv[5]);
+	pSet.wheel1SizeB          = atof(argv[6]);
+	pSet.wheelCenterOffset    = atof(argv[7]);
+	pSet.wheelCount           = atof(argv[8]);
 	pSet.teethDensityRelative = atof(argv[9]);
-	pSet.teethCountFixed = atoi(argv[10]);
+	pSet.teethCountFixed      = atoi(argv[10]);
 
 	if (strcmp(argv[11], "1k") == 0)
 	{
@@ -578,7 +580,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x20449A;
 		strcpy(tifFormatFile, "1kx1kx1x16b.tif");
 		toolSize = 63;
-		loadTool("cone63.tif", 0x444C, tool);
+		loadTool("cone63.tif", 0x444C);
 	}
 
 	if (strcmp(argv[11], "4k") == 0)
@@ -591,7 +593,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x200449A;
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
 		toolSize = 255;
-		loadTool("cone255.tif", 0x4768, tool);
+		loadTool("cone255.tif", 0x4768);
 	}
 
 	if (strcmp(argv[11], "downsampled_4k") == 0)
@@ -604,32 +606,43 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x200449A;
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
 		toolSize = 255;
-		loadTool("cone255.tif", 0x4768, tool);
-		// loadTool("cone1023.tif", 0x48da, tool);
+		loadTool("cone255.tif", 0x4768);
+		// loadTool("cone1023.tif", 0x48da);
 	}
 
 	wipe(image, width * height);
-	// loadTool("cone511d.tif", 0x48ac, tool);
-	// loadTool("cone511d-softer.tif", 0x48fa, tool);
-	// loadTool("cone255-maxed.tif", 0x48d2, tool);
-	// loadTool("smooth2550.tif", 0x477a0, tool);
-	// loadTool("cone1023.tif", 0x48da, tool);
+	// loadTool("cone511d.tif", 0x48ac);
+	// loadTool("cone511d-softer.tif", 0x48fa);
+	// loadTool("cone255-maxed.tif", 0x48d2);
+	// loadTool("smooth2550.tif", 0x477a0);
+	// loadTool("cone1023.tif", 0x48da);
 
 	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
 	{
+		// create x threads
 		HANDLE thread = CreateThread(NULL, 0, ThreadFunc, NULL, 0, NULL);
-		if (thread) 
+		if (thread)
 		{
+			// got a handle
 			while (!threads[threadNumber])
 			{
+				printf("?");
+				// wait until thread has presented itself as alive
 				Sleep(1);
 			}
 		}
+		else
+		{
+			printf("no thread %i", threadNumber);
+		}
 	}
+
+	printf("all threads active");
 
 	BOOL threadsActive = TRUE;
 	while (threadsActive)
 	{
+		printf(".");
 		Sleep(1);
 		threadsActive = FALSE;
 		for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
@@ -642,24 +655,20 @@ void nonUi(int argc, char *argv[])
 	finish();
 }
 
-int main(int argc, char *argv[])
+void stdioLoop()
 {
-	if (argc == 1)
-	{
-		uiLoop();
-	}
-	// else
-	// {
-	// 	nonUi(argc, argv);
-	// }
+	enum { maxArgs = 13, linelen = 80 };
+	char commandLine[linelen] = "";
+	char ch;
+	char pos;
+
 	while (TRUE)
 	{
-		enum { kMaxArgs = 13, kLinelen = 80 };
-		char commandLine[kLinelen];
-		char pos = 0;
-		char ch;
+		// repeat nonUi() until blank command line
+		pos = 0;
 		while(TRUE)
 		{
+			// read stdin until \n
 			if (read(STDIN_FILENO, &ch, 1) > 0)
 			{
 				if (ch == '\n') break;
@@ -670,11 +679,11 @@ int main(int argc, char *argv[])
 		commandLine[pos] = '\0';
 		if (strlen(commandLine) == 0) break;
 
+		// parse stdin line into argc and argv[]
 		int argc = 0;
-		char *argv[kMaxArgs];
-
+		char *argv[maxArgs];
 		char *p2 = strtok(commandLine, " ");
-		while (p2 && argc < kMaxArgs-1)
+		while (p2 && argc < maxArgs-1)
 		{
 			argv[argc++] = p2;
 			p2 = strtok(0, " ");
@@ -682,6 +691,18 @@ int main(int argc, char *argv[])
 		argv[argc] = 0;
 		printf("command line: %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[0],argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8],argv[9],argv[10],argv[11]);
 		nonUi(argc, argv);
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc == 1)
+	{
+		uiLoop();
+	}
+	else
+	{
+		stdioLoop();
 	}
 	return 0;
 }
