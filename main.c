@@ -337,17 +337,11 @@ DWORD WINAPI threadWork(void *data)
 	printf("Starting thread %i\n", threadId);
 	threadsStarted++;
 
-	if (strcmp(algorithm, "customParameterDrawing") == 0)
-	{
+	if      (strcmp(algorithm, "customParameterDrawing") == 0)
 		customParameterDrawing(threadId);
-	}
-
-	if (strcmp(algorithm, "sunburstAndCircles") == 0)
-	{
+	else if (strcmp(algorithm, "sunburstAndCircles")     == 0)
 		sunburstAndCircles(threadId);
-	}
-
-	if (strcmp(algorithm, "") == 0)
+	else if (strcmp(algorithm, "")                       == 0)
 	{
 
 	}
@@ -446,8 +440,8 @@ void nonUi(int argc, char *argv[])
 	pSet.teethDensityRelative = atof(argv[9]);
 	pSet.teethCountFixed      = atol(argv[10]);
 
-	// output resolution
-	if (strcmp(argv[11], "1k") == 0)
+	// output resolution & downsampling
+	if      (strcmp(argv[11], "1k")             == 0)
 	{
 		width              = 1024;
 		height             = 1024;
@@ -457,8 +451,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x20449A;
 		strcpy(tifFormatFile, "1kx1kx1x16b.tif");
 	}
-
-	if (strcmp(argv[11], "4k") == 0)
+	else if (strcmp(argv[11], "4k")             == 0)
 	{
 		width              = 4096;
 		height             = 4096;
@@ -468,8 +461,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x200449A;
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
 	}
-
-	if (strcmp(argv[11], "downsampled_4k") == 0)
+	else if (strcmp(argv[11], "downsampled_4k") == 0)
 	{
 		width              = 16384;
 		height             = 16384;
@@ -481,19 +473,22 @@ void nonUi(int argc, char *argv[])
 	}
 
 	// tool
-	if (strcmp(argv[12], "cone63") == 0)
+	// loadTool("cone511d.tif", 0x48ac);
+	// loadTool("cone511d-softer.tif", 0x48fa);
+	// loadTool("cone255-maxed.tif", 0x48d2);
+	// loadTool("smooth2550.tif", 0x477a0);
+	// loadTool("cone1023.tif", 0x48da);
+	if      (strcmp(argv[12], "cone63")   == 0)
 	{
 		toolSize = 63;
 		loadTool("cone63.tif", 0x444C);
 	}
-
-	if (strcmp(argv[12], "cone255") == 0)
+	else if (strcmp(argv[12], "cone255")  == 0)
 	{
 		toolSize = 255;
 		loadTool("cone255.tif", 0x4768);
 	}
-
-	if (strcmp(argv[12], "cone1023") == 0)
+	else if (strcmp(argv[12], "cone1023") == 0)
 	{
 		toolSize = 1023;
 		loadTool("cone1023.tif", 0x48da);
@@ -502,11 +497,6 @@ void nonUi(int argc, char *argv[])
 	strcpy(algorithm, argv[13]);
 
 	wipe(image, width * height);
-	// loadTool("cone511d.tif", 0x48ac);
-	// loadTool("cone511d-softer.tif", 0x48fa);
-	// loadTool("cone255-maxed.tif", 0x48d2);
-	// loadTool("smooth2550.tif", 0x477a0);
-	// loadTool("cone1023.tif", 0x48da);
 
 	doThreadedWork();
 
@@ -538,7 +528,7 @@ void stdioLoop()
 		if (strlen(commandLine) == 0) break;
 
 		// parse stdin line into argc and argv[]
-		int argc = 0;
+		int  argc = 0;
 		char *argv[maxArgs];
 		char *p2 = strtok(commandLine, " ");
 		while (p2 && argc < maxArgs-1)
@@ -550,11 +540,8 @@ void stdioLoop()
 
 		char i = 0;
 		for (i = 0; i < argc; i++)
-		{
-			//printf("command line: %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[0],argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8],argv[9],argv[10],argv[11]);
-			//write(STDOUT_FILENO, &argv[i], strlen(argv[i]));
 			puts(argv[i]);
-		}
+
 		nonUi(argc, argv);
 	}
 }
