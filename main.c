@@ -43,6 +43,8 @@ int  threadNumber;
 int  threadsStarted;
 int  threadsStopped;
 
+char algorithm[80];
+
 typedef struct Parameters
 {
 	float waves;
@@ -253,35 +255,32 @@ void parameterUi()
 }
 
 #pragma GCC push_options
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("O2")
 BOOL notMyJob(ULONG cutCounter, int threadId)
 {
 	return cutCounter % THREADCOUNT != threadId;
 }
 #pragma GCC pop_options
 
-
-
 void customParameterDrawing(int threadId)
 {
-	float waves                = pSet.waves;
-	float spiral               = pSet.spiral;
-	float depthA               = pSet.depthA;
-	float depthB               = pSet.depthB;
-	float wheel1SizeA          = pSet.wheel1SizeA;
-	float wheel1SizeB          = pSet.wheel1SizeB;
-	float wheelCenterOffset    = pSet.wheelCenterOffset;
-	// float for correct division
-	float wheelCount           = pSet.wheelCount; 
-	float teethDensityRelative = pSet.teethDensityRelative;
-	int   teethCountFixed      = pSet.teethCountFixed;
+	float  waves                = pSet.waves;
+	float  spiral               = pSet.spiral;
+	float  depthA               = pSet.depthA;
+	float  depthB               = pSet.depthB;
+	float  wheel1SizeA          = pSet.wheel1SizeA;
+	float  wheel1SizeB          = pSet.wheel1SizeB;
+	float  wheelCenterOffset    = pSet.wheelCenterOffset;
+	float  wheelCount           = pSet.wheelCount; // float for correct division
+	float  teethDensityRelative = pSet.teethDensityRelative;
+	USHORT teethCountFixed      = pSet.teethCountFixed;
 
-	ULONG cutCounter = 0;
-	float wheel1Rotation;
-	float wheel1Size;
-	int   wheel1Teeth;
-	float wheel1Tooth;
-	int   wheelNumber;
+	ULONG  cutCounter = 0;
+	float  wheel1Rotation;
+	float  wheel1Size;
+	USHORT wheel1Teeth;
+	float  wheel1Tooth;
+	USHORT wheelNumber;
 	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
 	{
 		printf("t %d w %d... ", threadId, wheelNumber);
@@ -307,6 +306,11 @@ void customParameterDrawing(int threadId)
 	}
 }
 
+void sunburstAndCircles(int threadId)
+{
+	return;
+}
+
 DWORD WINAPI threadWork(void *data)
 {
 	// https://stackoverflow.com/questions/1981459/using-threads
@@ -318,8 +322,22 @@ DWORD WINAPI threadWork(void *data)
 	int threadId = threadNumber;
 	printf("Starting thread %i\n", threadId);
 	threadsStarted++;
-	//inputFloat("thread paused", 0);
-	customParameterDrawing(threadId);
+
+	if (strcmp(algorithm, "customParameterDrawing") == 0)
+	{
+		customParameterDrawing(threadId);
+	}
+
+	if (strcmp(algorithm, "sunburstAndCircles") == 0)
+	{
+		sunburstAndCircles(threadId);
+	}
+
+	if (strcmp(algorithm, "") == 0)
+	{
+
+	}
+	
 	// drawCone(threadId);
 
 	printf("Stopping thread %i\n", threadId);
@@ -392,7 +410,7 @@ void uiLoop()
 		// present UI
 		parameterUi();
 
-		doThreadedWork();
+		doThreadedWork("customParameterDrawing");
 
 		finish();
 	}
@@ -400,7 +418,8 @@ void uiLoop()
 
 void nonUi(int argc, char *argv[])
 {
-	if (argc < 13) return;
+	if (argc < 14) return;
+
 	pSet.waves                = atof(argv[1]);
 	pSet.spiral               = atof(argv[2]);
 	pSet.depthA               = atof(argv[3]);
@@ -412,6 +431,7 @@ void nonUi(int argc, char *argv[])
 	pSet.teethDensityRelative = atof(argv[9]);
 	pSet.teethCountFixed      = atoi(argv[10]);
 
+	// output resolution
 	if (strcmp(argv[11], "1k") == 0)
 	{
 		width              = 1024;
@@ -445,6 +465,7 @@ void nonUi(int argc, char *argv[])
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
 	}
 
+	// tool
 	if (strcmp(argv[12], "cone63") == 0)
 	{
 		toolSize = 63;
@@ -462,6 +483,8 @@ void nonUi(int argc, char *argv[])
 		toolSize = 1023;
 		loadTool("cone1023.tif", 0x48da);
 	}
+
+	strcpy(algorithm, argv[13]);
 
 	wipe(image, width * height);
 	// loadTool("cone511d.tif", 0x48ac);
@@ -509,7 +532,14 @@ void stdioLoop()
 			p2 = strtok(0, " ");
 		}
 		argv[argc] = 0;
-		//printf("command line: %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[0],argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8],argv[9],argv[10],argv[11]);
+
+		char i = 0;
+		for (i = 0; i < argc; i++)
+		{
+			//printf("command line: %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[0],argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8],argv[9],argv[10],argv[11]);
+			//write(STDOUT_FILENO, &argv[i], strlen(argv[i]));
+			puts(argv[i]);
+		}
 		nonUi(argc, argv);
 	}
 }
