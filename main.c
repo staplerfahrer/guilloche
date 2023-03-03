@@ -89,6 +89,9 @@ void loadTool(char *name, ULONG headerSize)
 
 void save(char *name, USHORT *img)
 {
+	// 2 bytes per pixel
+	ULONG outputBytes = width*height*2/resampleDivisor/resampleDivisor;
+
 	FILE *ptr;
 	ptr = fopen(tifFormatFile, "rb");
 	fread(imageHeader, imageHeaderSize, 1, ptr);
@@ -98,7 +101,7 @@ void save(char *name, USHORT *img)
 
 	ptr = fopen(name, "wb");
 	fwrite(imageHeader, imageHeaderSize, 1, ptr);
-	fwrite(img, width*height*2, 1, ptr); // 2 bytes per pixel
+	fwrite(img, outputBytes, 1, ptr);
 	fwrite(imageFooter, imageFooterSize, 1, ptr);
 	fclose(ptr);
 }
@@ -107,24 +110,24 @@ int inputInt(char *text, int value)
 {
 	printf("%s [%d]: ", text, value);
 	char inp[20];
-	// TODO handle CTRL+C
 	fgets(inp, 20, stdin);
+	if (!running) return 0;
 	if (strlen(inp) > 1) //??
-		{return atol(inp);}
+		return atol(inp);
 	else
-		{return value;}
+		return value;
 }
 
 float inputFloat(char *text, float value)
 {
 	printf("%s [%f]: ", text, value);
 	char inp[20];
-	// TODO handle CTRL+C
 	fgets(inp, 20, stdin);
+	if (!running) return 0.0;
 	if (strlen(inp) > 1) //??
-		{return atof(inp);}
+		return atof(inp);
 	else
-		{return value;}
+		return value;
 }
 
 USHORT getPixel(USHORT *img, int w, int x, int y)
@@ -211,22 +214,23 @@ void cutFloat(USHORT *img, float x, float y, float depth)
 
 void finish()
 {
+	USHORT *output = image;
+
 	if (resampleDivisor > 1)
 	{
 		printf("resampling...\n");
 		resample(image, imageFinal);
-		printf("saving...\n");
-		save("C:\\Temp\\out.temp", imageFinal);
+		output = imageFinal;
 	}
-	else
-	{
-		printf("saving...\n");
-		save("C:\\Temp\\out.temp", image);
-	}
+
+	printf("saving...\n");
+	save("C:\\Temp\\out.temp", output);
+
 	remove("C:\\Temp\\out.tif");
 	rename("C:\\Temp\\out.temp", "C:\\Temp\\out.tif");
-	//system("C:\\Temp\\out.tif"); // open the .tif
-	printf("done\n");
+
+	printf("Image saved to C:\\Temp\\out.tif\n");
+	printf("Done.\n");
 }
 
 BOOL WINAPI ctrlCHandler(DWORD signal)
@@ -243,15 +247,25 @@ BOOL WINAPI ctrlCHandler(DWORD signal)
 void parameterUi()
 {
 	pSet.waves                = inputFloat("1/10  waves                ", pSet.waves);
+	if (!running) return;
 	pSet.spiral               = inputFloat("2/10  spiral               ", pSet.spiral);
+	if (!running) return;
 	pSet.depthA               = inputFloat("3/10  depthA               ", pSet.depthA);
+	if (!running) return;
 	pSet.depthB               = inputFloat("4/10  depthB               ", pSet.depthB);
+	if (!running) return;
 	pSet.wheel1SizeA          = inputFloat("5/10  wheel1SizeA          ", pSet.wheel1SizeA);
+	if (!running) return;
 	pSet.wheel1SizeB          = inputFloat("6/10  wheel1SizeB          ", pSet.wheel1SizeB);
+	if (!running) return;
 	pSet.wheelCenterOffset    = inputFloat("7/10  wheelCenterOffset    ", pSet.wheelCenterOffset);
+	if (!running) return;
 	pSet.wheelCount           = inputInt(  "8/10  wheelCount           ", pSet.wheelCount);
+	if (!running) return;
 	pSet.teethDensityRelative = inputFloat("9/10  teethDensityRelative ", pSet.teethDensityRelative);
+	if (!running) return;
 	pSet.teethCountFixed      = inputInt(  "10/10 teethCountFixed      ", pSet.teethCountFixed);
+	if (!running) return;
 }
 
 #pragma GCC push_options
@@ -409,6 +423,7 @@ void uiLoop()
 
 		// present UI
 		parameterUi();
+		if (!running) return;
 
 		doThreadedWork("customParameterDrawing");
 
@@ -427,9 +442,9 @@ void nonUi(int argc, char *argv[])
 	pSet.wheel1SizeA          = atof(argv[5]);
 	pSet.wheel1SizeB          = atof(argv[6]);
 	pSet.wheelCenterOffset    = atof(argv[7]);
-	pSet.wheelCount           = atoi(argv[8]);
+	pSet.wheelCount           = atol(argv[8]);
 	pSet.teethDensityRelative = atof(argv[9]);
-	pSet.teethCountFixed      = atoi(argv[10]);
+	pSet.teethCountFixed      = atol(argv[10]);
 
 	// output resolution
 	if (strcmp(argv[11], "1k") == 0)
