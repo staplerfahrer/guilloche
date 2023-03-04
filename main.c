@@ -322,7 +322,43 @@ void customParameterDrawing(int threadId)
 
 void sunburstAndCircles(int threadId)
 {
-	return;
+	float  waves                = pSet.waves;
+	float  spiral               = pSet.spiral;
+	float  depthA               = pSet.depthA;
+	float  depthB               = pSet.depthB;
+	float  wheel1SizeA          = pSet.wheel1SizeA;
+	float  wheel1SizeB          = pSet.wheel1SizeB;
+	float  wheelCenterOffset    = pSet.wheelCenterOffset;
+	float  wheelCount           = pSet.wheelCount; // float for correct division
+	USHORT teethCountFixed      = pSet.teethCountFixed;
+
+	int   wheelNumber;
+	float wheel1Rotation;
+	float wheel1Tooth;
+	float wheel1Size;
+	float wheel1SizeDivision;
+	float depth = 1;
+
+	char  stat = '.';
+
+	wheel1Tooth = TWOPI / teethCountFixed;
+
+	if (wheelCount == 1)
+		wheel1SizeDivision = 0;
+	else
+		wheel1SizeDivision = (wheel1SizeA - wheel1SizeB) / (wheelCount - 1);
+
+	for (wheelNumber = 1; wheelNumber <= wheelCount; wheelNumber++)
+	{
+		write(STDOUT_FILENO, &stat, 1);
+		wheel1Size = wheel1SizeA - (wheel1SizeDivision * (wheelNumber - 1));
+		for (wheel1Rotation = 0; wheel1Rotation < TWOPI; wheel1Rotation += wheel1Tooth)
+		{
+			float x = wheel1Size * cos(wheel1Rotation);
+			float y = wheel1Size * sin(wheel1Rotation);
+			cutFloat(image, x, y, depth);
+		}
+	}
 }
 
 DWORD WINAPI threadWork(void *data)
