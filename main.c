@@ -164,7 +164,7 @@ void resample(USHORT *img, USHORT *imgResized)
 	}
 }
 
-USHORT minimum(unsigned int a, unsigned int b)
+USHORT minimum(USHORT a, USHORT b)
 {
 	return a < b ? a : b;
 }
@@ -172,6 +172,34 @@ USHORT minimum(unsigned int a, unsigned int b)
 float limit(float a)
 {
 	return a < 0 ? 0 : a > 1 ? 1 : a;
+}
+
+void cutPixelAa(float x, float y, float depth)
+{
+	// x, y are pixel coordinates from 0 to 4095 or some such
+	// depth is 0 to 1, 1 being black, 0 being transparent
+
+	// ex.
+	// x = 1.4, y = 1.2
+	// depth = 1
+	int   x_whole     = x;                                           // 1
+	int   y_whole     = y;                                           // 1
+	float x_fraction  = x - x_whole;                                 // 0.4
+	float y_fraction  = y - y_whole;                                 // 0.2
+	float current     = depth * (1.0-x_fraction) * (1.0-y_fraction); // 1 * (1.0-0.4) * (1.0-0.2)
+	float right       = depth * (x_fraction)     * (1.0-y_fraction); // 1 * 0.4 * (1.0-0.2)
+	float below       = depth * (1.0-x_fraction) * (y_fraction);     // 1 * (1.0-0.4) * 0.2
+	float below_right = depth * (x_fraction)     * (y_fraction);     // 1 * 0.4 * 0.2
+	
+	USHORT int_current     = minimum(getPixel(image, width, x_whole,   y_whole  ), (USHORT) (65535.0 - 65535.0*current));
+	USHORT int_right       = minimum(getPixel(image, width, x_whole+1, y_whole  ), (USHORT) (65535.0 - 65535.0*right));
+	USHORT int_below       = minimum(getPixel(image, width, x_whole,   y_whole+1), (USHORT) (65535.0 - 65535.0*below));
+	USHORT int_below_right = minimum(getPixel(image, width, x_whole+1, y_whole+1), (USHORT) (65535.0 - 65535.0*below_right));
+
+	setPixel(image, width, x_whole,   y_whole,   int_current);
+	setPixel(image, width, x_whole+1, y_whole,   int_right);
+	setPixel(image, width, x_whole,   y_whole+1, int_below);
+	setPixel(image, width, x_whole+1, y_whole+1, int_below_right);
 }
 
 void cut(USHORT *img, int x, int y, USHORT depth)
@@ -377,9 +405,9 @@ DWORD WINAPI threadWork(void *data)
 		customParameterDrawing(threadId);
 	else if (strcmp(algorithm, "sunburstAndCircles")     == 0)
 		sunburstAndCircles(threadId);
-	else if (strcmp(algorithm, "")                       == 0)
+	else
 	{
-
+		printf("Unknown algorithm \"%s\"", algorithm);
 	}
 	
 	// drawCone(threadId);
@@ -476,6 +504,11 @@ void nonUi(int argc, char *argv[])
 	pSet.teethDensityRelative = atof(argv[9]);
 	pSet.teethCountFixed      = atol(argv[10]);
 
+
+	// TODO? fix resolution to 4095, or 1023 so we have a middle pixel!
+	// 512/512 or 2048/2048 is currently "the middle"
+
+
 	// output resolution & downsampling
 	if      (strcmp(argv[11], "1k")             == 0)
 	{
@@ -535,6 +568,20 @@ void nonUi(int argc, char *argv[])
 	wipe(image, width * height);
 
 	doThreadedWork();
+
+	cutPixelAa(1.0, 1.0, 1.0);
+
+	cutPixelAa(1.01 + 3, 1.0, 1.0);
+
+	cutPixelAa(1.0 + 6, 1.01, 1.0);
+
+	cutPixelAa(1.01 + 9, 1.01, 1.0);
+
+	cutPixelAa(1.99 + 12, 1.0, 1.0);
+
+	cutPixelAa(1.0 + 15, 1.99, 1.0);
+
+	cutPixelAa(1.99 + 18, 1.99, 1.0);
 
 	finish();
 }
