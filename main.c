@@ -1,3 +1,4 @@
+#pragma region head
 #include <stdio.h>
 #include <unistd.h>
 #include <math.h>
@@ -10,17 +11,17 @@
 #define USHORT unsigned short
 #define ULONG  unsigned long
 
-//--------------------------------------------------------------------
-#define THREADCOUNT 16
+USHORT threadCount;
 
 //--------------------------------------------------------------------
-USHORT width;
-USHORT height;
+USHORT imageSize;
+float  halfSize;
 USHORT resampleDivisor;
 USHORT imageHeaderSize;
 USHORT imageFooterSize;
 ULONG  imageFooterAddress;
 USHORT toolSize;
+float  halfToolSize;
 char   tifFormatFile[20];
 
 //--------------------------------------------------------------------
@@ -73,6 +74,8 @@ ParameterSet pSet =
 	.teethCountFixed      = 0
 };
 
+#pragma endregion
+
 void wipe(USHORT *img, ULONG elements)
 {
 	for (ULONG i = 0; i < elements; i++) img[i] = -1;
@@ -90,7 +93,7 @@ void loadTool(char *name, ULONG headerSize)
 void save(char *name, USHORT *img)
 {
 	// 2 bytes per pixel
-	ULONG outputBytes = width*height*2/resampleDivisor/resampleDivisor;
+	ULONG outputBytes = imageSize*imageSize*2/resampleDivisor/resampleDivisor;
 
 	FILE *ptr;
 	ptr = fopen(tifFormatFile, "rb");
@@ -106,65 +109,44 @@ void save(char *name, USHORT *img)
 	fclose(ptr);
 }
 
-int inputInt(char *text, int value)
-{
-	printf("%s [%d]: ", text, value);
-	char inp[20];
-	fgets(inp, 20, stdin);
-	if (!running) return 0;
-	if (strlen(inp) > 1) //??
-		return atol(inp);
-	else
-		return value;
-}
-
-float inputFloat(char *text, float value)
-{
-	printf("%s [%f]: ", text, value);
-	char inp[20];
-	fgets(inp, 20, stdin);
-	if (!running) return 0.0;
-	if (strlen(inp) > 1) //??
-		return atof(inp);
-	else
-		return value;
-}
-
 USHORT getPixel(USHORT *img, int w, int x, int y)
 {
 	return img[w * y + x];
 }
 
-void setPixel(USHORT *img, int w, int x, int y, USHORT p)
+void setPixel(USHORT x, USHORT y, ULONG brightness)
 {
-	img[w * y + x] = p;
+	// main image paint
+	if (x >= imageSize || y >= imageSize) return;
+	if (brightness > 0xFFFF) brightness = 0xFFFF;
+	image[imageSize * y + x] = brightness;
 }
 
 void resample(USHORT *img, USHORT *imgResized)
 {
-	int targetHeight = height / resampleDivisor;
-	int targetWidth = width / resampleDivisor;
+	int targetImageSize = imageSize / resampleDivisor;
+	int resampleDivisorSqr = resampleDivisor * resampleDivisor;
 	ULONG p;
 	int x, y, n, o;
-	for (y = 0; y < targetHeight; y++)
+	for (y = 0; y < targetImageSize; y++)
 	{
-		for (x = 0; x < targetWidth; x++)
+		for (x = 0; x < targetImageSize; x++)
 		{
 			p = 0;
 			for (o = 0; o < resampleDivisor; o++)
 			{
 				for (n = 0; n < resampleDivisor; n++)
 				{
-					p += getPixel(img, width, x * resampleDivisor + n, y * resampleDivisor + o);
+					p += getPixel(img, imageSize, x * resampleDivisor + n, y * resampleDivisor + o);
 				}
 			}
-			p /= resampleDivisor * resampleDivisor;
-			imgResized[targetWidth * y + x] = p;
+			p /= resampleDivisorSqr;
+			imgResized[targetImageSize * y + x] = p;
 		}
 	}
 }
 
-USHORT minimum(USHORT a, USHORT b)
+ULONG minimum(ULONG a, ULONG b)
 {
 	return a < b ? a : b;
 }
@@ -174,36 +156,67 @@ float limit(float a)
 	return a < 0 ? 0 : a > 1 ? 1 : a;
 }
 
-void cutPixelAa(float x, float y, float depth)
+void cutPixelAa(float xAbsolute, float yAbsolute, float pixelBrightness)
 {
-	// x, y are pixel coordinates from 0 to 4095 or some such
-	// depth is 0 to 1, 1 being black, 0 being transparent
-
-	// ex.
-	// x = 1.4, y = 1.2
-	// depth = 1
-	int   x_whole     = x;                                           // 1
-	int   y_whole     = y;                                           // 1
-	float x_fraction  = x - x_whole;                                 // 0.4
-	float y_fraction  = y - y_whole;                                 // 0.2
-	float current     = depth * (1.0-x_fraction) * (1.0-y_fraction); // 1 * (1.0-0.4) * (1.0-0.2)
-	float right       = depth * (x_fraction)     * (1.0-y_fraction); // 1 * 0.4 * (1.0-0.2)
-	float below       = depth * (1.0-x_fraction) * (y_fraction);     // 1 * (1.0-0.4) * 0.2
-	float below_right = depth * (x_fraction)     * (y_fraction);     // 1 * 0.4 * 0.2
-	
-	USHORT int_current     = minimum(getPixel(image, width, x_whole,   y_whole  ), (USHORT) (65535.0 - 65535.0*current));
-	USHORT int_right       = minimum(getPixel(image, width, x_whole+1, y_whole  ), (USHORT) (65535.0 - 65535.0*right));
-	USHORT int_below       = minimum(getPixel(image, width, x_whole,   y_whole+1), (USHORT) (65535.0 - 65535.0*below));
-	USHORT int_below_right = minimum(getPixel(image, width, x_whole+1, y_whole+1), (USHORT) (65535.0 - 65535.0*below_right));
-
-	setPixel(image, width, x_whole,   y_whole,   int_current);
-	setPixel(image, width, x_whole+1, y_whole,   int_right);
-	setPixel(image, width, x_whole,   y_whole+1, int_below);
-	setPixel(image, width, x_whole+1, y_whole+1, int_below_right);
+	// x, y are pixel coordinates from 0 thru 4095 or some such
+	// pixel brightness is 0.0 thru 65535.0 float because tool depth math
+	//                                                                           ex.
+	//                                                                           x = 1.4, y = 1.2
+	//                                                                           depth = 1
+	printf("\ncutPixelAa %f %f %f\n", xAbsolute, yAbsolute, pixelBrightness);
+	float pixelDarkness     = 65535.0 - pixelBrightness;
+	printf("pixelDarkness     %f\n", pixelDarkness);
+	int   xWhole            = xAbsolute;                                           // 1
+	printf("xWhole            %i\n", xWhole);
+	int   yWhole            = yAbsolute;                                           // 1
+	printf("yWhole            %i\n", yWhole);
+	float xSpillover        = xAbsolute - xWhole;                                  // 0.4
+	printf("xSpillover        %f\n", xSpillover);
+	float ySpillover        = yAbsolute - yWhole;                                  // 0.2
+	printf("ySpillover        %f\n", ySpillover);
+	float centerOpacity     = (1.0-xSpillover) * (1.0-ySpillover); // 1 * (1.0-0.4) * (1.0-0.2)
+	printf("centerOpacity     %f\n", centerOpacity);
+	float rightOpacity      = (    xSpillover) * (1.0-ySpillover); // 1 * 0.4 * (1.0-0.2)
+	printf("rightOpacity      %f\n", rightOpacity);
+	float belowOpacity      = (1.0-xSpillover) * (    ySpillover); // 1 * (1.0-0.4) * 0.2
+	printf("belowOpacity      %f\n", belowOpacity);
+	float belowRightOpacity = (    xSpillover) * (    ySpillover); // 1 * 0.4 * 0.2
+	printf("belowRightOpacity %f\n", belowRightOpacity);
+	setPixel(xWhole,   yWhole,   minimum(getPixel(image, imageSize, xWhole,   yWhole  ), 65535.0 - (pixelDarkness * centerOpacity     )));
+	setPixel(xWhole+1, yWhole,   minimum(getPixel(image, imageSize, xWhole+1, yWhole  ), 65535.0 - (pixelDarkness * rightOpacity      )));
+	setPixel(xWhole,   yWhole+1, minimum(getPixel(image, imageSize, xWhole,   yWhole+1), 65535.0 - (pixelDarkness * belowOpacity      )));
+	setPixel(xWhole+1, yWhole+1, minimum(getPixel(image, imageSize, xWhole+1, yWhole+1), 65535.0 - (pixelDarkness * belowRightOpacity )));
 }
 
-void cut(USHORT *img, int x, int y, USHORT depth)
+float rel2abs(float rel)
 {
+	printf("%f %f %f", halfSize, rel, halfSize+rel*halfSize);
+	return halfSize + rel * halfSize;
+}
+
+void cutToolAa(float xRelative, float yRelative, float maxDepth)
+{
+	// maxDepth 0 thru 1, 1 being black 100% and 0 being white 0%.
+	int   toolX, toolY;
+	float targetPixelAbsX, targetPixelAbsY, cutDepth;
+	float toolLift = 65535.0 * (1.0 - maxDepth);
+	for (toolY = 0; toolY < toolSize; toolY++)
+	{
+		for (toolX = 0; toolX < toolSize; toolX++)
+		{
+			cutDepth = getPixel(tool, toolSize, toolX, toolY) + toolLift;
+			printf("%i %i %f -> %f / ", toolX, toolY, toolLift, cutDepth);
+			cutPixelAa(
+				rel2abs(xRelative - halfToolSize + toolX), 
+				rel2abs(yRelative - halfToolSize + toolY), 
+				cutDepth);
+		}
+	}
+}
+
+void cut(USHORT x, USHORT y, USHORT depth)
+{
+	// "cut" into image with tool
 	int toolX, toolY;
 	int imageX, imageY;
 	USHORT pImage = 0;
@@ -217,27 +230,28 @@ void cut(USHORT *img, int x, int y, USHORT depth)
 			imageY = y - ((toolSize - 1) / 2) + toolY;
 
 			if (imageX < 0) continue;
-			if (imageX >= width) continue;
+			if (imageX >= imageSize) continue;
 			if (imageY < 0) continue;
-			if (imageY >= height) continue;
+			if (imageY >= imageSize) continue;
 
 			pTool = getPixel(tool, toolSize, toolX, toolY);
-			pImage = getPixel(img, width, imageX, imageY);
+			pImage = getPixel(image, imageSize, imageX, imageY);
 			pFinal = minimum(pTool + depth, pImage); // "+" causes unsigned int?
-			setPixel(img, width, imageX, imageY, pFinal);
+			setPixel(imageX, imageY, pFinal);
 		}
 	}
 	pixelInteractions += pow(toolSize, 2) * 3;
 }
 
-void cutFloat(USHORT *img, float x, float y, float depth)
+void cutFloat(float x, float y, float depth)
 {
-	int halfX = width / 2;
-	int halfY = height / 2;
-	int imageX = halfX + (x * (float) width / 2);
-	int imageY = height - (halfY + (y * (float) height / 2));
+	// relative float position to pixel coordinates 
+	int    halfX    = imageSize / 2;
+	int    halfY    = imageSize / 2;
+	USHORT imageX   = halfX + (x * (float) imageSize / 2);
+	USHORT imageY   = imageSize - (halfY + (y * (float) imageSize / 2));
 	USHORT depthInt = 0xFFFF - (limit(depth) * 0xFFFF);
-	cut(img, imageX, imageY, depthInt);
+	cut(imageX, imageY, depthInt);
 }
 
 void finish()
@@ -261,46 +275,11 @@ void finish()
 	printf("Done.\n");
 }
 
-BOOL WINAPI ctrlCHandler(DWORD signal)
-{
-	printf("signal %d ", signal);
-    if (signal == CTRL_C_EVENT)
-	{
-        printf("Ctrl-C handled\n");
-		running = FALSE;
-	}
-    return TRUE;
-}
-
-void parameterUi()
-{
-	pSet.waves                = inputFloat("1/10  waves                ", pSet.waves);
-	if (!running) return;
-	pSet.spiral               = inputFloat("2/10  spiral               ", pSet.spiral);
-	if (!running) return;
-	pSet.depthA               = inputFloat("3/10  depthA               ", pSet.depthA);
-	if (!running) return;
-	pSet.depthB               = inputFloat("4/10  depthB               ", pSet.depthB);
-	if (!running) return;
-	pSet.wheel1SizeA          = inputFloat("5/10  wheel1SizeA          ", pSet.wheel1SizeA);
-	if (!running) return;
-	pSet.wheel1SizeB          = inputFloat("6/10  wheel1SizeB          ", pSet.wheel1SizeB);
-	if (!running) return;
-	pSet.wheelCenterOffset    = inputFloat("7/10  wheelCenterOffset    ", pSet.wheelCenterOffset);
-	if (!running) return;
-	pSet.wheelCount           = inputInt(  "8/10  wheelCount           ", pSet.wheelCount);
-	if (!running) return;
-	pSet.teethDensityRelative = inputFloat("9/10  teethDensityRelative ", pSet.teethDensityRelative);
-	if (!running) return;
-	pSet.teethCountFixed      = inputInt(  "10/10 teethCountFixed      ", pSet.teethCountFixed);
-	if (!running) return;
-}
-
 #pragma GCC push_options
 #pragma GCC optimize ("O2")
 BOOL notMyJob(ULONG cutCounter, int threadId)
 {
-	return cutCounter % THREADCOUNT != threadId;
+	return cutCounter % threadCount != threadId;
 }
 #pragma GCC pop_options
 
@@ -329,7 +308,7 @@ void customParameterDrawing(int threadId)
 		wheel1Size  = wheel1SizeA*(wheelNumber/wheelCount)+wheel1SizeB;
 		wheel1Teeth = teethCountFixed > 0
 			? teethCountFixed
-			: PI * width * wheel1Size * teethDensityRelative;
+			: PI * imageSize * wheel1Size * teethDensityRelative;
 		wheel1Tooth = TWOPI / wheel1Teeth;
 		float spiralTurn = 0-wheelNumber/wheelCount*spiral*TWOPI;
 		float wheelCenterX = cos(wheelNumber/wheelCount*TWOPI)*wheelCenterOffset;
@@ -341,7 +320,7 @@ void customParameterDrawing(int threadId)
 			float cutX = wheelCenterX+wheel1Size*cos(wheel1Rotation+spiralTurn);
 			float cutY = wheelCenterY+wheel1Size*sin(wheel1Rotation+spiralTurn);
 			float depthX = sqrt(pow(fabs(cutX),2)+pow(fabs(cutY),2));
-			cutFloat(image, cutX, cutY, depthA*depthX+depthB);
+			cutFloat(cutX, cutY, depthA*depthX+depthB);
 			if (!running) break;
 		}
 		if (!running) break;
@@ -350,6 +329,33 @@ void customParameterDrawing(int threadId)
 
 void sunburstAndCircles(int threadId)
 {
+	// cutPixelAa(0, 0, 0);
+	// cutPixelAa(10, 0, 32767);
+	// cutPixelAa(20, 0, 65535);
+	// cutPixelAa(0, rel2abs(-0.5), 0);
+	// cutPixelAa(10,rel2abs(-0.5), 32767);
+	// cutPixelAa(20,rel2abs(-0.5), 65535);
+	// cutPixelAa(0, rel2abs(0), 0);
+	// cutPixelAa(10,rel2abs(0), 32767);
+	// cutPixelAa(20,rel2abs(0), 65535);
+	// cutPixelAa(0, rel2abs(0.8), 0);
+	// cutPixelAa(10,rel2abs(0.8), 32767);
+	// cutPixelAa(20,rel2abs(0.8), 65535);
+	// cutPixelAa(0, rel2abs(0.9), 0);
+	// cutPixelAa(10,rel2abs(0.9), 32767);
+	// cutPixelAa(20,rel2abs(0.9), 65535);
+	// cutPixelAa(0, rel2abs(0.99), 0);
+	// cutPixelAa(10,rel2abs(0.99), 32767);
+	// cutPixelAa(20,rel2abs(0.99), 65535);
+	// cutPixelAa(0, rel2abs(0.999), 0);
+	// cutPixelAa(10,rel2abs(0.999), 32767);
+	// cutPixelAa(20,rel2abs(0.999), 65535);
+
+
+
+	cutToolAa(0, 0, 1);
+	return;
+
 	float  waves                = pSet.waves;
 	float  spiral               = pSet.spiral;
 	float  depthA               = pSet.depthA;
@@ -384,11 +390,13 @@ void sunburstAndCircles(int threadId)
 		{
 			float x = wheel1Size * cos(wheel1Rotation);
 			float y = wheel1Size * sin(wheel1Rotation);
-			cutFloat(image, x, y, depth);
+			//cutFloat(x, y, depth);
+			cutPixelAa(x, y, 1.0);
 		}
 	}
 }
 
+#pragma region threading
 DWORD WINAPI threadWork(void *data)
 {
 	// https://stackoverflow.com/questions/1981459/using-threads
@@ -423,7 +431,7 @@ void doThreadedWork()
 
 	threadsStarted = 0;
 	threadsStopped = 0;
-	for (threadNumber = 0; threadNumber < THREADCOUNT; threadNumber++)
+	for (threadNumber = 0; threadNumber < threadCount; threadNumber++)
 	{
 		// create x threads
 		HANDLE thread = CreateThread(NULL, 0, threadWork, NULL, 0, NULL);
@@ -445,7 +453,7 @@ void doThreadedWork()
 
 	printf("%i threads started.\n", threadsStarted);
 
-	while (threadsStopped < THREADCOUNT)
+	while (threadsStopped < threadCount)
 	{
 		// TODO won't quit if a thread (handle) wasn't created above
 		Sleep(1);
@@ -460,15 +468,77 @@ void doThreadedWork()
 		cpuTimeUsed,
 		(double)pixelInteractions/cpuTimeUsed/1000000000);
 }
+#pragma endregion
+
+#pragma region interface
+BOOL WINAPI ctrlCHandler(DWORD signal)
+{
+	printf("signal %d ", signal);
+    if (signal == CTRL_C_EVENT)
+	{
+        printf("Ctrl-C handled\n");
+		running = FALSE;
+	}
+    return TRUE;
+}
+
+int inputInt(char *text, int value)
+{
+	printf("%s [%d]: ", text, value);
+	char inp[20];
+	fgets(inp, 20, stdin);
+	if (!running) return 0;
+	if (strlen(inp) > 1) //??
+		return atol(inp);
+	else
+		return value;
+}
+
+float inputFloat(char *text, float value)
+{
+	printf("%s [%f]: ", text, value);
+	char inp[20];
+	fgets(inp, 20, stdin);
+	if (!running) return 0.0;
+	if (strlen(inp) > 1) //??
+		return atof(inp);
+	else
+		return value;
+}
+
+void parameterUi()
+{
+	pSet.waves                = inputFloat("1/10  waves                ", pSet.waves);
+	if (!running) return;
+	pSet.spiral               = inputFloat("2/10  spiral               ", pSet.spiral);
+	if (!running) return;
+	pSet.depthA               = inputFloat("3/10  depthA               ", pSet.depthA);
+	if (!running) return;
+	pSet.depthB               = inputFloat("4/10  depthB               ", pSet.depthB);
+	if (!running) return;
+	pSet.wheel1SizeA          = inputFloat("5/10  wheel1SizeA          ", pSet.wheel1SizeA);
+	if (!running) return;
+	pSet.wheel1SizeB          = inputFloat("6/10  wheel1SizeB          ", pSet.wheel1SizeB);
+	if (!running) return;
+	pSet.wheelCenterOffset    = inputFloat("7/10  wheelCenterOffset    ", pSet.wheelCenterOffset);
+	if (!running) return;
+	pSet.wheelCount           = inputInt(  "8/10  wheelCount           ", pSet.wheelCount);
+	if (!running) return;
+	pSet.teethDensityRelative = inputFloat("9/10  teethDensityRelative ", pSet.teethDensityRelative);
+	if (!running) return;
+	pSet.teethCountFixed      = inputInt(  "10/10 teethCountFixed      ", pSet.teethCountFixed);
+	if (!running) return;
+}
 
 void uiLoop()
 {
 	SetConsoleCtrlHandler(ctrlCHandler, TRUE);
 
+	threadCount = 16;
+
 	while (running)
 	{
-		width              = 4096;
-		height             = 4096;
+		imageSize          = 4096;
 		resampleDivisor    = 1;
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
@@ -477,7 +547,10 @@ void uiLoop()
 		loadTool("cone255.tif", 0x4768);
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
 
-		wipe(image, width * height);
+		halfSize = (float)(imageSize / 2);
+		halfToolSize = (float)(toolSize / 2);
+
+		wipe(image, imageSize * imageSize);
 
 		// present UI
 		parameterUi();
@@ -492,6 +565,8 @@ void uiLoop()
 void nonUi(int argc, char *argv[])
 {
 	if (argc < 14) return;
+
+	threadCount = 1;
 
 	pSet.waves                = atof(argv[1]);
 	pSet.spiral               = atof(argv[2]);
@@ -512,8 +587,7 @@ void nonUi(int argc, char *argv[])
 	// output resolution & downsampling
 	if      (strcmp(argv[11], "1k")             == 0)
 	{
-		width              = 1024;
-		height             = 1024;
+		imageSize          = 1024;
 		resampleDivisor    = 1;
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
@@ -522,8 +596,7 @@ void nonUi(int argc, char *argv[])
 	}
 	else if (strcmp(argv[11], "4k")             == 0)
 	{
-		width              = 4096;
-		height             = 4096;
+		imageSize          = 4096;
 		resampleDivisor    = 1;
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
@@ -532,14 +605,15 @@ void nonUi(int argc, char *argv[])
 	}
 	else if (strcmp(argv[11], "downsampled_4k") == 0)
 	{
-		width              = 16384;
-		height             = 16384;
+		imageSize          = 16384;
 		resampleDivisor    = 4;
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
 		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
 	}
+
+	halfSize = (float)(imageSize / 2);
 
 	// tool
 	// loadTool("cone511d.tif", 0x48ac);
@@ -550,7 +624,7 @@ void nonUi(int argc, char *argv[])
 	if      (strcmp(argv[12], "cone63")   == 0)
 	{
 		toolSize = 63;
-		loadTool("cone63.tif", 0x444C);
+		loadTool("cone63.tif", 0x4470);
 	}
 	else if (strcmp(argv[12], "cone255")  == 0)
 	{
@@ -563,25 +637,13 @@ void nonUi(int argc, char *argv[])
 		loadTool("cone1023.tif", 0x48da);
 	}
 
+	halfToolSize = (float)(toolSize / 2);
+
 	strcpy(algorithm, argv[13]);
 
-	wipe(image, width * height);
+	wipe(image, imageSize * imageSize);
 
 	doThreadedWork();
-
-	cutPixelAa(1.0, 1.0, 1.0);
-
-	cutPixelAa(1.01 + 3, 1.0, 1.0);
-
-	cutPixelAa(1.0 + 6, 1.01, 1.0);
-
-	cutPixelAa(1.01 + 9, 1.01, 1.0);
-
-	cutPixelAa(1.99 + 12, 1.0, 1.0);
-
-	cutPixelAa(1.0 + 15, 1.99, 1.0);
-
-	cutPixelAa(1.99 + 18, 1.99, 1.0);
 
 	finish();
 }
@@ -641,3 +703,4 @@ int main(int argc, char *argv[])
 	}
 	return 0;
 }
+#pragma endregion
