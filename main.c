@@ -163,25 +163,25 @@ void cutPixelAa(float xAbsolute, float yAbsolute, float pixelBrightness)
 	//                                                                           ex.
 	//                                                                           x = 1.4, y = 1.2
 	//                                                                           depth = 1
-	printf("\ncutPixelAa %f %f %f\n", xAbsolute, yAbsolute, pixelBrightness);
+	//printf("\ncutPixelAa %f %f %f\n", xAbsolute, yAbsolute, pixelBrightness);
 	float pixelDarkness     = 65535.0 - pixelBrightness;
-	printf("pixelDarkness     %f\n", pixelDarkness);
+	//printf("pixelDarkness     %f\n", pixelDarkness);
 	int   xWhole            = xAbsolute;                                           // 1
-	printf("xWhole            %i\n", xWhole);
+	//printf("xWhole            %i\n", xWhole);
 	int   yWhole            = yAbsolute;                                           // 1
-	printf("yWhole            %i\n", yWhole);
+	//printf("yWhole            %i\n", yWhole);
 	float xSpillover        = xAbsolute - xWhole;                                  // 0.4
-	printf("xSpillover        %f\n", xSpillover);
+	//printf("xSpillover        %f\n", xSpillover);
 	float ySpillover        = yAbsolute - yWhole;                                  // 0.2
-	printf("ySpillover        %f\n", ySpillover);
+	//printf("ySpillover        %f\n", ySpillover);
 	float centerOpacity     = (1.0-xSpillover) * (1.0-ySpillover); // 1 * (1.0-0.4) * (1.0-0.2)
-	printf("centerOpacity     %f\n", centerOpacity);
+	//printf("centerOpacity     %f\n", centerOpacity);
 	float rightOpacity      = (    xSpillover) * (1.0-ySpillover); // 1 * 0.4 * (1.0-0.2)
-	printf("rightOpacity      %f\n", rightOpacity);
+	//printf("rightOpacity      %f\n", rightOpacity);
 	float belowOpacity      = (1.0-xSpillover) * (    ySpillover); // 1 * (1.0-0.4) * 0.2
-	printf("belowOpacity      %f\n", belowOpacity);
+	//printf("belowOpacity      %f\n", belowOpacity);
 	float belowRightOpacity = (    xSpillover) * (    ySpillover); // 1 * 0.4 * 0.2
-	printf("belowRightOpacity %f\n", belowRightOpacity);
+	//printf("belowRightOpacity %f\n", belowRightOpacity);
 	setPixel(xWhole,   yWhole,   minimum(getPixel(image, imageSize, xWhole,   yWhole  ), 65535.0 - (pixelDarkness * centerOpacity     )));
 	setPixel(xWhole+1, yWhole,   minimum(getPixel(image, imageSize, xWhole+1, yWhole  ), 65535.0 - (pixelDarkness * rightOpacity      )));
 	setPixel(xWhole,   yWhole+1, minimum(getPixel(image, imageSize, xWhole,   yWhole+1), 65535.0 - (pixelDarkness * belowOpacity      )));
@@ -190,7 +190,7 @@ void cutPixelAa(float xAbsolute, float yAbsolute, float pixelBrightness)
 
 float rel2abs(float rel)
 {
-	printf("%f %f %f", halfSize, rel, halfSize+rel*halfSize);
+	// printf("%f %f %f", halfSize, rel, halfSize+rel*halfSize);
 	return halfSize + rel * halfSize;
 }
 
@@ -204,13 +204,14 @@ void cutToolAa(float xRelative, float yRelative, float maxDepth)
 	{
 		for (toolX = 0; toolX < toolSize; toolX++)
 		{
-			cutDepth = getPixel(tool, toolSize, toolX, toolY) + toolLift;
+			cutDepth = getPixel(tool, toolSize, toolX, toolY);// + toolLift;
 			printf("%i %i %f -> %f / ", toolX, toolY, toolLift, cutDepth);
 			cutPixelAa(
-				rel2abs(xRelative - halfToolSize + toolX), 
-				rel2abs(yRelative - halfToolSize + toolY), 
+				rel2abs(xRelative) - halfToolSize + toolX, 
+				rel2abs(yRelative) - halfToolSize + toolY, 
 				cutDepth);
 		}
+		printf("\n");
 	}
 }
 
