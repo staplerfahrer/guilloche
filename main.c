@@ -205,13 +205,13 @@ void cutToolAa(float xRelative, float yRelative, float maxDepth)
 		for (toolX = 0; toolX < toolSize; toolX++)
 		{
 			cutDepth = getPixel(tool, toolSize, toolX, toolY);// + toolLift;
-			printf("%i %i %f -> %f / ", toolX, toolY, toolLift, cutDepth);
+			// printf("%i %i %f -> %f / ", toolX, toolY, toolLift, cutDepth);
 			cutPixelAa(
 				rel2abs(xRelative) - halfToolSize + toolX, 
 				rel2abs(yRelative) - halfToolSize + toolY, 
 				cutDepth);
 		}
-		printf("\n");
+		// printf("\n");
 	}
 }
 
@@ -330,32 +330,10 @@ void customParameterDrawing(int threadId)
 
 void sunburstAndCircles(int threadId)
 {
-	// cutPixelAa(0, 0, 0);
-	// cutPixelAa(10, 0, 32767);
-	// cutPixelAa(20, 0, 65535);
-	// cutPixelAa(0, rel2abs(-0.5), 0);
-	// cutPixelAa(10,rel2abs(-0.5), 32767);
-	// cutPixelAa(20,rel2abs(-0.5), 65535);
-	// cutPixelAa(0, rel2abs(0), 0);
-	// cutPixelAa(10,rel2abs(0), 32767);
-	// cutPixelAa(20,rel2abs(0), 65535);
-	// cutPixelAa(0, rel2abs(0.8), 0);
-	// cutPixelAa(10,rel2abs(0.8), 32767);
-	// cutPixelAa(20,rel2abs(0.8), 65535);
-	// cutPixelAa(0, rel2abs(0.9), 0);
-	// cutPixelAa(10,rel2abs(0.9), 32767);
-	// cutPixelAa(20,rel2abs(0.9), 65535);
-	// cutPixelAa(0, rel2abs(0.99), 0);
-	// cutPixelAa(10,rel2abs(0.99), 32767);
-	// cutPixelAa(20,rel2abs(0.99), 65535);
-	// cutPixelAa(0, rel2abs(0.999), 0);
-	// cutPixelAa(10,rel2abs(0.999), 32767);
-	// cutPixelAa(20,rel2abs(0.999), 65535);
-
-
-
 	cutToolAa(0, 0, 1);
-	return;
+	cutToolAa(0.5, 0, 1);
+	cutToolAa(0.932766, 0, 1);
+	cutToolAa(1, 0, 1);
 
 	float  waves                = pSet.waves;
 	float  spiral               = pSet.spiral;
@@ -392,7 +370,8 @@ void sunburstAndCircles(int threadId)
 			float x = wheel1Size * cos(wheel1Rotation);
 			float y = wheel1Size * sin(wheel1Rotation);
 			//cutFloat(x, y, depth);
-			cutPixelAa(x, y, 1.0);
+			// cutPixelAa(x, y, 1.0);
+			cutToolAa(x, y, 1);
 		}
 	}
 }
