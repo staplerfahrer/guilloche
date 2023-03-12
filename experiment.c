@@ -69,8 +69,7 @@ void setPixel(USHORT x, USHORT y, ULONG brightness)
 {
 	// main image paint
 	if (x >= imageSize || y >= imageSize) return;
-	if (brightness > 0xFFFF) brightness = 0xFFFF;
-	image[imageSize * y + x] = brightness;
+	image[imageSize * y + x] = MIN(brightness, 0xFFFF);
 }
 #pragma endregion
 
@@ -111,13 +110,11 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	USHORT xCounterStart  = minX - (imageXWhole - toolReach);
 	USHORT yCounterStart  = minY - (imageYWhole - toolReach);
 	USHORT xCounter, yCounter;
-	printf("x: %f, test: %i\n", imageXAbsolute, xCounterStart);
 
 	yCounter = yCounterStart;
 	for (y = minY; y < maxY; y++)
 	{
 		xCounter = xCounterStart;
-		printf("xc: %i, yc: %i\n", xCounter, yCounter);
 		for (x = minX; x < maxX; x++)
 		{
 			setPixel(
@@ -129,7 +126,6 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 		}
 		yCounter++;
 	}
-	// printf("count: %i\n",count);
 
 
 
@@ -167,9 +163,17 @@ int main(int argc, char *argv[])
 	wipe(image, imageSize*imageSize);
 	strcpy(tifFormatFile, "1kx1kx1x16b.tif");
 	loadSamplingTool("cone_5040x5040_16b.raw");
-	cut(512, 10);
-	cut(512.5, 20);
-	// cut(512.9, 40);
+	float x = 0;
+	float y = 0;
+	float round = 0;
+	// for (round = 0; round < 3.1415926*2; round += 0.31415)
+	// {
+	// 	x = cos(round)*100+512;
+	// 	y = sin(round)*100+512;
+	// 	printf("x %f y %f\n",x,y);
+	// 	cut(x, y);
+	// }
+	cut(512.1, 512);
 	// USHORT pix = sampleToolPixel(252,252,1);
 	// printf("pix: %i", pix);
 	save("experiment.tif", image);
