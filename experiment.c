@@ -4,6 +4,9 @@
 #include <math.h>
 #include <windows.h>
 
+#define PI 3.1415926535897932384626433832795
+#define TWOPI 6.283185307179586476925286766559
+
 #define MIN(i, j) (((i) < (j)) ? (i) : (j))
 #define MAX(i, j) (((i) > (j)) ? (i) : (j))
 
@@ -15,7 +18,7 @@ USHORT image[16384 * 16384];      // 16k x 16k x 2 bytes per pixel = 512 MB
 
 USHORT toolSize = 5040;
 USHORT samplingTool[10240 * 10240];
-USHORT toolSample = 10;
+USHORT toolSample = 30;
 USHORT toolReach;
 
 char   tifFormatFile[20];
@@ -100,8 +103,8 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 
 	USHORT imageXWhole    = imageXAbsolute;
 	USHORT imageYWhole    = imageYAbsolute;
-	USHORT xSubpixel      = round((imageXAbsolute - imageXWhole)*10);
-	USHORT ySubpixel      = round((imageYAbsolute - imageYWhole)*10);
+	USHORT xSubpixel      = round((imageXAbsolute - imageXWhole)*toolSample);
+	USHORT ySubpixel      = round((imageYAbsolute - imageYWhole)*toolSample);
 	USHORT toolReach      = toolSize / 2 / toolSample;
 	int    x, y;
 	int    minX           = MAX(imageXWhole - toolReach, 0);
@@ -120,9 +123,8 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 			setPixel(
 				x, 
 				y, 
-				sampleToolPixel(xCounter, yCounter, xSubpixel, ySubpixel));
-				// MIN(sampleToolPixel(xCounter, yCounter, xSubpixel, ySubpixel),
-				// 	getPixel(image, imageSize, x, y)));
+				MIN(sampleToolPixel(xCounter, yCounter, xSubpixel, ySubpixel),
+					getPixel(image, imageSize, x, y)));
 			xCounter++;
 		}
 		yCounter++;
@@ -168,15 +170,11 @@ int main(int argc, char *argv[])
 	float x = 0;
 	float y = 0;
 	float round = 0;
-	// for (round = 0; round < 3.1415926*2; round += 0.31415)
-	// {
-	// 	x = cos(round)*100+512;
-	// 	y = sin(round)*100+512;
-	// 	printf("x %f y %f\n",x,y);
-	// 	cut(x, y);
-	// }
-	cut(512, 512.1);
-	// USHORT pix = sampleToolPixel(252,252,1);
-	// printf("pix: %i", pix);
+	for (round = 0; round < TWOPI; round += PI/10000)
+	{
+		x = cos(round)*200+512;
+		y = sin(round)*200+512;
+		cut(x, y);
+	}
 	save("experiment.tif", image);
 }
