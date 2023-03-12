@@ -77,6 +77,7 @@ USHORT sampleToolPixel(USHORT xCounter, USHORT yCounter, USHORT xSubpixel, USHOR
 {
 	USHORT x = xCounter * toolSample - xSubpixel; 
 	USHORT y = yCounter * toolSample - ySubpixel;
+	if (x > toolSize || y > toolSize) return 0xFFFF; // white, if outside tool area
 	return getPixel(samplingTool, toolSize, x, y);
 }
 
@@ -99,8 +100,8 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 
 	USHORT imageXWhole    = imageXAbsolute;
 	USHORT imageYWhole    = imageYAbsolute;
-	USHORT imageXFraction = round((imageXAbsolute - imageXWhole)*10);
-	USHORT imageYFraction = round((imageYAbsolute - imageYWhole)*10);
+	USHORT xSubpixel      = round((imageXAbsolute - imageXWhole)*10);
+	USHORT ySubpixel      = round((imageYAbsolute - imageYWhole)*10);
 	USHORT toolReach      = toolSize / 2 / toolSample;
 	int    x, y;
 	int    minX           = MAX(imageXWhole - toolReach, 0);
@@ -110,7 +111,6 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	USHORT xCounterStart  = minX - (imageXWhole - toolReach);
 	USHORT yCounterStart  = minY - (imageYWhole - toolReach);
 	USHORT xCounter, yCounter;
-
 	yCounter = yCounterStart;
 	for (y = minY; y < maxY; y++)
 	{
@@ -120,8 +120,9 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 			setPixel(
 				x, 
 				y, 
-				MIN(sampleToolPixel(xCounter, yCounter, imageXFraction, imageYFraction),
-					getPixel(image, imageSize, x, y)));
+				sampleToolPixel(xCounter, yCounter, xSubpixel, ySubpixel));
+				// MIN(sampleToolPixel(xCounter, yCounter, xSubpixel, ySubpixel),
+				// 	getPixel(image, imageSize, x, y)));
 			xCounter++;
 		}
 		yCounter++;
@@ -161,6 +162,7 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 int main(int argc, char *argv[])
 {
 	wipe(image, imageSize*imageSize);
+	wipe(samplingTool, imageSize*imageSize);
 	strcpy(tifFormatFile, "1kx1kx1x16b.tif");
 	loadSamplingTool("cone_5040x5040_16b.raw");
 	float x = 0;
@@ -173,7 +175,7 @@ int main(int argc, char *argv[])
 	// 	printf("x %f y %f\n",x,y);
 	// 	cut(x, y);
 	// }
-	cut(512.1, 512);
+	cut(512, 512.1);
 	// USHORT pix = sampleToolPixel(252,252,1);
 	// printf("pix: %i", pix);
 	save("experiment.tif", image);
