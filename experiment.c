@@ -28,6 +28,7 @@ USHORT resampleDivisor = 1;
 USHORT imageHeaderSize = 0x449A;
 USHORT imageFooterSize = 46;
 ULONG imageFooterAddress = 0x20449A;
+char status = '.';
 #pragma endregion
 
 #pragma region Loading and saving
@@ -65,6 +66,7 @@ void wipe(USHORT *img, ULONG pixelCount)
 
 USHORT getPixel(USHORT *img, USHORT imgWidth, USHORT x, USHORT y)
 {
+	if (x >= imgWidth || y >= imgWidth) return 0xFFFF;
 	return img[imgWidth * y + x];
 }
 
@@ -169,12 +171,14 @@ int main(int argc, char *argv[])
 	loadSamplingTool("cone_5040x5040_16b.raw");
 	float x = 0;
 	float y = 0;
-	float round = 0;
-	for (round = 0; round < TWOPI; round += PI/10000)
+	for (int copy = 0; copy < 800; copy += 1)
 	{
-		x = cos(round)*200+512;
-		y = sin(round)*200+512;
-		cut(x, y);
+		for (float circle = 0; circle < TWOPI; circle += PI/60)
+		{
+			x = cos(circle)*copy+512;
+			y = sin(circle)*copy+512;
+			cut(x, y);
+		}
 	}
 	save("experiment.tif", image);
 }
