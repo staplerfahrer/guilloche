@@ -21,14 +21,12 @@ USHORT samplingTool[10240 * 10240];
 USHORT toolSample = 30;
 USHORT toolReach;
 
-char   tifFormatFile[20];
+char tifFormatFile[20] = "1kx1kx1x16b.tif";
 char imageHeader[1048576];
 char imageFooter[1048576];
-USHORT resampleDivisor = 1;
 USHORT imageHeaderSize = 0x449A;
 USHORT imageFooterSize = 46;
 ULONG imageFooterAddress = 0x20449A;
-char status = '.';
 #pragma endregion
 
 #pragma region Loading and saving
@@ -43,7 +41,7 @@ void loadSamplingTool(char *name)
 void save(char *name, USHORT *img)
 {
 	// 2 bytes per pixel
-	ULONG outputBytes = imageSize * imageSize * 2 / resampleDivisor / resampleDivisor;
+	ULONG outputBytes = imageSize * imageSize * 2;
 
 	FILE *ptr;
 	ptr = fopen(tifFormatFile, "rb");
@@ -62,6 +60,21 @@ void save(char *name, USHORT *img)
 void wipe(USHORT *img, ULONG pixelCount)
 {
 	for (ULONG i = 0; i < pixelCount; i++) img[i] = -1;
+}
+
+void maximize()
+{
+	USHORT max = 0;
+	ULONG pixelCount = imageSize*imageSize;
+	for (ULONG i = 0; i < pixelCount; i++) max = MAX(max, image[i]);
+	float multiplier = 65535.0 / max;
+	printf("multiplier: %f",multiplier);
+	float newVal;
+	for (ULONG i = 0; i < pixelCount; i++) 
+	{
+		newVal = image[i] * multiplier;
+		image[i] = (USHORT) newVal;
+	}
 }
 
 USHORT getPixel(USHORT *img, USHORT imgWidth, USHORT x, USHORT y)
@@ -113,6 +126,9 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	int    minY           = MAX(imageYWhole - toolReach, 0);
 	int    maxX           = imageXWhole + toolReach; // exclusive because <
 	int    maxY           = imageYWhole + toolReach; // exclusive because <
+
+	if (maxX < 0 || minX > imageSize || maxY < 0 || minY > imageSize) return;
+
 	USHORT xCounterStart  = minX - (imageXWhole - toolReach);
 	USHORT yCounterStart  = minY - (imageYWhole - toolReach);
 	USHORT xCounter, yCounter;
@@ -131,8 +147,6 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 		}
 		yCounter++;
 	}
-
-
 
 	// AT X & Y CUT AN APPROPRIATELY SAMPLED PORTION OF THE TOOL
 	// calculate area to draw
@@ -165,20 +179,30 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 
 int main(int argc, char *argv[])
 {
+	imageSize = 4096;
+	imageHeaderSize = 0x449A;
+	imageFooterSize = 46;
+	imageFooterAddress = 0x200449A;
+	strcpy(tifFormatFile, "4kx4kx1x16b.tif");
+
 	wipe(image, imageSize*imageSize);
 	wipe(samplingTool, imageSize*imageSize);
-	strcpy(tifFormatFile, "1kx1kx1x16b.tif");
+
 	loadSamplingTool("cone_5040x5040_16b.raw");
+
 	float x = 0;
 	float y = 0;
-	for (int copy = 0; copy < 800; copy += 1)
+	float copies = 1.42*4096;
+	for (float copy = 0; copy < copies; copy += 10)
 	{
-		for (float circle = 0; circle < TWOPI; circle += PI/60)
+		for (float circle = 0; circle < TWOPI; circle += PI/16384)
 		{
-			x = cos(circle)*copy+512;
-			y = sin(circle)*copy+512;
+			x = cos(circle)*copy+2048;
+			y = sin(circle)*copy;
 			cut(x, y);
 		}
+		printf("%f %%\n", 100 * copy / copies);
 	}
+	maximize();
 	save("experiment.tif", image);
 }
