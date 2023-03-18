@@ -1,3 +1,3 @@
 @rem https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
-gcc -O9 -g main.c -o guilloche.exe
+gcc -g -O9 -o guilloche.exe main.c drawing.c fileio.c patterns.c 
 @set buildlevel=%errorlevel%

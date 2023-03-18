@@ -5,6 +5,13 @@
 		}
 	],
 	"settings": {
-		"editor.foldingHighlight": false
+		"editor.foldingHighlight": false,
+		"files.associations": {
+			"*.inc": "php",
+			"*.tpl": "php",
+			"stdio.h": "c",
+			"time.h": "c",
+			"drawing.h": "c"
+		}
 	}
 }
