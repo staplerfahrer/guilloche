@@ -6,11 +6,10 @@ rem @echo off
 ::
 :::ok
 ::@echo on
-rem echo x 0 0 0.875 0.125 0.9 0.0 0.4 72 0.1 0 1k | a.exe x 
-rem guilloche.exe
+echo 0 0 0.875 0.125 0.9 0.0 0.4 72 0.1 0 4k sunburstAndCircles | guilloche.exe
 
 :: :end
 
 
-gcc -O9 -g experiment.c -o experiment.exe
-experiment.exe
+@REM gcc -O9 -g experiment.c -o experiment.exe
+@REM experiment.exe

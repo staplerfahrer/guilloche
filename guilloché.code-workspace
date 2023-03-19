@@ -11,7 +11,8 @@
 			"*.tpl": "php",
 			"stdio.h": "c",
 			"time.h": "c",
-			"drawing.h": "c"
+			"drawing.h": "c",
+			"threading.h": "c"
 		}
 	}
 }

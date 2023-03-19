@@ -1,28 +1,15 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <windows.h>
 
 #include "types.h"
 #include "patterns.h"
 #include "fileio.h"
 #include "drawing.h"
+#include "threading.h"
 
 ParameterSet pSet;
 
-USHORT threadCount = 16;
-int threadNumber;
-int threadsStarted;
-int threadsStopped;
-
-#pragma GCC push_options
-#pragma GCC optimize("O2")
-BOOL notMyJob(ULONG cutCounter, int threadId)
-{
-	return cutCounter % threadCount != threadId;
-}
-#pragma GCC pop_options
-
-DWORD WINAPI threadWork(void *data) 
+DWORD WINAPI workerThread(void *data) 
 {
 	// https://stackoverflow.com/questions/1981459/using-threads
 	//     -in-c-on-windows-simple-example
@@ -37,11 +24,10 @@ DWORD WINAPI threadWork(void *data)
 	if      (strcmp(algorithm, "customParameterDrawing") == 0)
 		;// customParameterDrawing(threadId);
 	else if (strcmp(algorithm, "sunburstAndCircles") == 0)
-		;// sunburstAndCircles(threadId);
+		//sunburstAndCircles(threadId);
+		testDrawing(threadId);
 	else
-	{
 		printf("Unknown algorithm \"%s\"", algorithm);
-	}
 
 	// drawCone(threadId);
 
@@ -50,59 +36,24 @@ DWORD WINAPI threadWork(void *data)
 	return 0;
 }
 
-void doThreadedWork()
-{
-	threadsStarted = 0;
-	threadsStopped = 0;
-	for (threadNumber = 0; threadNumber < threadCount; threadNumber++)
-	{
-		// create x threads
-		HANDLE thread = CreateThread(NULL, 0, threadWork, NULL, 0, NULL);
-		if (thread)
-		{
-			while (threadsStarted <= threadNumber)
-			{
-				// wait until thread has assigned threadNumber id
-				printf("\%\n");
-			}
-			printf("New thread %i\n", threadNumber);
-		}
-		else
-		{
-			printf("No thread %i\n", threadNumber);
-			return;
-		}
-	}
-
-	printf("%i threads started.\n", threadsStarted);
-
-	while (threadsStopped < threadCount)
-	{
-		// TODO won't quit if a thread (handle) wasn't created above
-		Sleep(1);
-	}
-
-	printf("%i threads stopped.\n", threadsStopped);
-}
-
 void nonUi(int argc, char *argv[])
 {
-	if (argc < 14)
+	if (argc < 12)
 		return;
 
-	pSet.waves                = atof(argv[1]);
-	pSet.spiral               = atof(argv[2]);
-	pSet.depthA               = atof(argv[3]);
-	pSet.depthB               = atof(argv[4]);
-	pSet.wheel1SizeA          = atof(argv[5]);
-	pSet.wheel1SizeB          = atof(argv[6]);
-	pSet.wheelCenterOffset    = atof(argv[7]);
-	pSet.wheelCount           = atol(argv[8]);
-	pSet.teethDensityRelative = atof(argv[9]);
-	pSet.teethCountFixed      = atol(argv[10]);
+	pSet.waves                = atof(argv[0]);
+	pSet.spiral               = atof(argv[1]);
+	pSet.depthA               = atof(argv[2]);
+	pSet.depthB               = atof(argv[3]);
+	pSet.wheel1SizeA          = atof(argv[4]);
+	pSet.wheel1SizeB          = atof(argv[5]);
+	pSet.wheelCenterOffset    = atof(argv[6]);
+	pSet.wheelCount           = atol(argv[7]);
+	pSet.teethDensityRelative = atof(argv[8]);
+	pSet.teethCountFixed      = atol(argv[9]);
 
 	// output resolution & downsampling
-	if (strcmp(argv[11], "1k") == 0)
+	if      (strcmp(argv[10], "1k") == 0)
 	{
 		imageSize          = 1024;
 		imageHeaderSize    = 0x449A;
@@ -110,7 +61,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x20449A;
 		strcpy(tifFormatFile, "1kx1kx1x16b.tif");
 	}
-	else if (strcmp(argv[11], "4k") == 0)
+	else if (strcmp(argv[10], "4k") == 0)
 	{
 		imageSize          = 4096;
 		imageHeaderSize    = 0x449A;
@@ -123,18 +74,19 @@ void nonUi(int argc, char *argv[])
 		return;
 	}
 
+	// wiping and loading
+	wipe(image, imageSize * imageSize);
+	wipe(samplingTool, imageSize * imageSize);
+
 	// tool
-	// if (strcmp(argv[12], "cone63") == 0)
-	// halfToolSize = (float)(toolSize / 2);
+	loadSamplingTool("cone_5040x5040_16b.raw");
 
 	// drawing algorithm
-	strcpy(algorithm, argv[13]);
+	strcpy(algorithm, argv[11]);
 
-	wipe(image, imageSize * imageSize);
+	// doThreadedWork(workerThread);
 
-	//doThreadedWork();
-
-	//finish();
+	finish();
 }
 
 void stdioLoop()
@@ -184,6 +136,7 @@ void stdioLoop()
 			puts(argv[i]);
 
 		nonUi(argc, argv);
+		printf("done\n");
 	}
 }
 
