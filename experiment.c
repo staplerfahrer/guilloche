@@ -32,6 +32,7 @@ ULONG imageFooterAddress = 0x20449A;
 #pragma region Loading and saving
 void loadSamplingTool(char *name)
 {
+	printf("Loading sampling tool %s\n", name);
 	FILE *ptr;
 	ptr = fopen(name, "rb");
 	fread(samplingTool, toolSize * toolSize * 2, 1, ptr); // W x H x 2 bytes per pixel

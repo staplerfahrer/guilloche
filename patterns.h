@@ -3,6 +3,6 @@
 
 #include "types.h"
 
-char algorithm[80];
+char algorithm[256];
 
 #endif

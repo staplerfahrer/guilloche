@@ -20,6 +20,6 @@ typedef struct
 	int teethCountFixed;
 } ParameterSet;
 
-USHORT image[4096 * 4096]; // TODO smaller than 16x16k I used before could cause reading wrap-around or something // 4k x 4k x 2 bytes per pixel = 32 MB
+USHORT image[16384 * 16384]; // TODO smaller than 16x16k I used before could cause reading wrap-around or something // 4k x 4k x 2 bytes per pixel = 32 MB
 
 #endif

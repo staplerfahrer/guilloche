@@ -4,7 +4,7 @@
 #include "threading.h"
 #include "types.h"
 
-int threadCount    = 16;
+int threadCount    = 1;
 int threadNumber   = 0;
 int threadsStarted = 0;
 int threadsStopped = 0;
@@ -31,7 +31,6 @@ void doThreadedWork(LPTHREAD_START_ROUTINE worker)
 			{
 				// wait until thread has assigned threadNumber id
 				printf("\%");
-				Sleep(1);
 			}
 			printf(" New thread %i\n", threadNumber);
 		}

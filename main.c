@@ -18,8 +18,8 @@ DWORD WINAPI workerThread(void *data)
 	// the thread goes away. See MSDN for more details.
 
 	int threadId = threadNumber;
-	printf("Starting thread %i\n", threadId);
 	threadsStarted++;
+	printf("Started worker thread %i\n", threadId);
 
 	if      (strcmp(algorithm, "customParameterDrawing") == 0)
 		;// customParameterDrawing(threadId);
@@ -31,8 +31,8 @@ DWORD WINAPI workerThread(void *data)
 
 	// drawCone(threadId);
 
-	printf("Stopping thread %i\n", threadId);
 	threadsStopped++;
+	printf("Stopped worker thread %i\n", threadId);
 	return 0;
 }
 
@@ -59,7 +59,9 @@ void nonUi(int argc, char *argv[])
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x20449A;
-		strcpy(tifFormatFile, "1kx1kx1x16b.tif");
+		toolSize           = 5040;
+		toolSample         = 30;
+		strcpy(tifFormatFile, "tools and templates\\1kx1kx1x16b.tif");
 	}
 	else if (strcmp(argv[10], "4k") == 0)
 	{
@@ -67,7 +69,9 @@ void nonUi(int argc, char *argv[])
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
-		strcpy(tifFormatFile, "4kx4kx1x16b.tif");
+		toolSize           = 5040;
+		toolSample         = 30;
+		strcpy(tifFormatFile, "tools and templates\\4kx4kx1x16b.tif");
 	}
 	else
 	{
@@ -79,12 +83,12 @@ void nonUi(int argc, char *argv[])
 	wipe(samplingTool, imageSize * imageSize);
 
 	// tool
-	loadSamplingTool("cone_5040x5040_16b.raw");
+	loadSamplingTool("tools and templates\\cone_5040x5040_16b.raw");
 
-	// drawing algorithm
+	// set the drawing algorithm
 	strcpy(algorithm, argv[11]);
 
-	// doThreadedWork(workerThread);
+	doThreadedWork(workerThread);
 
 	finish();
 }
@@ -136,7 +140,8 @@ void stdioLoop()
 			puts(argv[i]);
 
 		nonUi(argc, argv);
-		printf("done\n");
+
+		printf("stdioLoop() repeat...\n");
 	}
 }
 

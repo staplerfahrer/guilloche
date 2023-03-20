@@ -7,16 +7,9 @@
 
 void wipe(USHORT *img, ULONG elements)
 {
+	USHORT white = 0xFFFF;
 	for (ULONG i = 0; i < elements; i++)
-		img[i] = -1;
-}
-
-void loadSamplingTool(char *name)
-{
-	FILE *ptr;
-	ptr = fopen(name, "rb");
-	fread(samplingTool, toolSize * toolSize * 2, 1, ptr); // W x H x 2 bytes per pixel
-	fclose(ptr);
+		img[i] = white;
 }
 
 void maximize()
@@ -81,12 +74,12 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	USHORT xSubpixel = round((imageXAbsolute - imageXWhole) * toolSample);
 	USHORT ySubpixel = round((imageYAbsolute - imageYWhole) * toolSample);
 	USHORT toolReach = toolSize / 2 / toolSample;
+	printf("here\n");
 	int x, y;
 	int minX = MAX(imageXWhole - toolReach, 0);
 	int minY = MAX(imageYWhole - toolReach, 0);
 	int maxX = imageXWhole + toolReach; // exclusive because <
 	int maxY = imageYWhole + toolReach; // exclusive because <
-
 	if (maxX < 0 || minX > imageSize || maxY < 0 || minY > imageSize)
 		return;
 
@@ -112,23 +105,25 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 
 void testDrawing(int threadId)
 {
-	ULONG cutCounter = 0;
-	float x = 0;
-	float y = 0;
-	float copies = 1.42 * 4096;
-	for (float copy = 0; copy < copies; copy += 10)
-	{
-		for (float circle = 0; circle < TWOPI; circle += PI / 16384)
-		{
-			cutCounter++;
-			if (notMyJob(cutCounter, threadId))
-				continue;
-			x = cos(circle) * copy + 2048;
-			y = sin(circle) * copy;
-			cut(x, y);
-		}
-		printf("%f %%\n", 100 * copy / copies);
-	}
+	printf("testDrawing %i\n", threadId);
+	cut(2048.0,2048.0);
+	// ULONG cutCounter = 0;
+	// float x = 0;
+	// float y = 0;
+	// float copies = 1.42 * 4096;
+	// for (float copy = 0; copy < copies; copy += 10)
+	// {
+	// 	for (float circle = 0; circle < TWOPI; circle += PI / 16384)
+	// 	{
+	// 		cutCounter++;
+	// 		// if (notMyJob(cutCounter, threadId))
+	// 		// 	continue;
+	// 		x = cos(circle) * copy + 2048;
+	// 		y = sin(circle) * copy;
+	// 		cut(x, y);
+	// 	}
+	// 	printf("%f %%\n", 100 * copy / copies);
+	// }
 }
 
 // #pragma region special purpose drawing
