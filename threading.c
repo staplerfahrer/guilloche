@@ -4,7 +4,7 @@
 #include "threading.h"
 #include "types.h"
 
-int threadCount    = 1;
+int threadCount    = 16;
 int threadNumber   = 0;
 int threadsStarted = 0;
 int threadsStopped = 0;

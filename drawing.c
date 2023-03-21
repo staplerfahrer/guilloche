@@ -74,7 +74,6 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	USHORT xSubpixel = round((imageXAbsolute - imageXWhole) * toolSample);
 	USHORT ySubpixel = round((imageYAbsolute - imageYWhole) * toolSample);
 	USHORT toolReach = toolSize / 2 / toolSample;
-	printf("here\n");
 	int x, y;
 	int minX = MAX(imageXWhole - toolReach, 0);
 	int minY = MAX(imageYWhole - toolReach, 0);
@@ -101,29 +100,6 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 		}
 		yCounter++;
 	}
-}
-
-void testDrawing(int threadId)
-{
-	printf("testDrawing %i\n", threadId);
-	cut(2048.0,2048.0);
-	// ULONG cutCounter = 0;
-	// float x = 0;
-	// float y = 0;
-	// float copies = 1.42 * 4096;
-	// for (float copy = 0; copy < copies; copy += 10)
-	// {
-	// 	for (float circle = 0; circle < TWOPI; circle += PI / 16384)
-	// 	{
-	// 		cutCounter++;
-	// 		// if (notMyJob(cutCounter, threadId))
-	// 		// 	continue;
-	// 		x = cos(circle) * copy + 2048;
-	// 		y = sin(circle) * copy;
-	// 		cut(x, y);
-	// 	}
-	// 	printf("%f %%\n", 100 * copy / copies);
-	// }
 }
 
 // #pragma region special purpose drawing
