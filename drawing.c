@@ -51,9 +51,8 @@ void setPixel(USHORT x, USHORT y, ULONG brightness)
 
 USHORT sampleToolPixel(USHORT xCounter, USHORT yCounter, USHORT xSubpixel, USHORT ySubpixel)
 {
-	// this +1 shifts the center of the tool up and left by 1 pixel, but AA works
-	USHORT x = (xCounter+1) * toolSample - xSubpixel;
-	USHORT y = (yCounter+1) * toolSample - ySubpixel;
+	USHORT x = xCounter * toolSample - xSubpixel;
+	USHORT y = yCounter * toolSample - ySubpixel;
 	return getPixel(samplingTool, toolSize, x, y);
 }
 
@@ -72,6 +71,8 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	maxX = 251 because of <
 	countX = 503 (*10=5030 so room to sample for 0.9 pixel more)
 	*/
+	imageXAbsolute += 1; // start 1 pixel SE of where you want
+	imageYAbsolute += 1; // start 1 pixel SE of where you want
 
 	int imageXWhole = imageXAbsolute;
 	int imageYWhole = imageYAbsolute;
@@ -86,8 +87,8 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	if (maxX < 0 || minX > imageSize || maxY < 0 || minY > imageSize)
 		return;
 
-	int xCounterStart = minX - (imageXWhole - toolReach);
-	int yCounterStart = minY - (imageYWhole - toolReach);
+	int xCounterStart = minX - (imageXWhole - toolReach) + 1; // start at 1 and sample NW from there
+	int yCounterStart = minY - (imageYWhole - toolReach) + 1; // start at 1 and sample NW from there
 	int xCounter, yCounter;
 	yCounter = yCounterStart;
 	for (y = minY; y < maxY; y++)

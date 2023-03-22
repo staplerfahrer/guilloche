@@ -60,7 +60,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x20449A;
 		toolSize           = 5040;
-		toolSample         = 840;
+		toolSample         = 420;
 		strcpy(tifFormatFile, "tools and templates\\1kx1kx1x16b.tif");
 	}
 	else if (strcmp(argv[10], "4k") == 0)
@@ -70,7 +70,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
 		toolSize           = 5040;
-		toolSample         = 840;
+		toolSample         = 420;
 		strcpy(tifFormatFile, "tools and templates\\4kx4kx1x16b.tif");
 	}
 	else

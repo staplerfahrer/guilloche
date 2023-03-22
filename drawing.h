@@ -6,7 +6,7 @@
 USHORT imageSize;
 USHORT toolSize;
 USHORT samplingTool[10240 * 10240];
-USHORT toolSample;
+USHORT toolSample; // must create an even number of tool divisions, to sample the middle
 
 #define MIN(i, j) (((i) < (j)) ? (i) : (j))
 #define MAX(i, j) (((i) > (j)) ? (i) : (j))
