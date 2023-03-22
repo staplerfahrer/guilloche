@@ -14,16 +14,21 @@ void wipe(USHORT *img, ULONG elements)
 
 void maximize()
 {
+	USHORT min = 0xFFFF;
 	USHORT max = 0;
 	ULONG pixelCount = imageSize * imageSize;
 	for (ULONG i = 0; i < pixelCount; i++)
+	{
+		min = MIN(min, image[i]);
 		max = MAX(max, image[i]);
-	float multiplier = 65535.0 / max;
-	printf("multiplier: %f", multiplier);
-	float newVal;
+	}
+	double multiplier = 65535.0 / (max-min);
+	printf("max: %i, min: %i, multiplier: %f\n", max, min, multiplier);
+	double newVal;
 	for (ULONG i = 0; i < pixelCount; i++)
 	{
-		newVal = image[i] * multiplier;
+		newVal = image[i]-min;
+		newVal *= multiplier;
 		image[i] = (USHORT)newVal;
 	}
 }
@@ -46,10 +51,9 @@ void setPixel(USHORT x, USHORT y, ULONG brightness)
 
 USHORT sampleToolPixel(USHORT xCounter, USHORT yCounter, USHORT xSubpixel, USHORT ySubpixel)
 {
-	USHORT x = xCounter * toolSample - xSubpixel;
-	USHORT y = yCounter * toolSample - ySubpixel;
-	if (x > toolSize || y > toolSize)
-		return 0xFFFF; // white, if outside tool area
+	// this +1 shifts the center of the tool up and left by 1 pixel, but AA works
+	USHORT x = (xCounter+1) * toolSample - xSubpixel;
+	USHORT y = (yCounter+1) * toolSample - ySubpixel;
 	return getPixel(samplingTool, toolSize, x, y);
 }
 
@@ -69,22 +73,22 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	countX = 503 (*10=5030 so room to sample for 0.9 pixel more)
 	*/
 
-	USHORT imageXWhole = imageXAbsolute;
-	USHORT imageYWhole = imageYAbsolute;
-	USHORT xSubpixel = round((imageXAbsolute - imageXWhole) * toolSample);
-	USHORT ySubpixel = round((imageYAbsolute - imageYWhole) * toolSample);
-	USHORT toolReach = toolSize / 2 / toolSample;
+	int imageXWhole = imageXAbsolute;
+	int imageYWhole = imageYAbsolute;
+	int xSubpixel = round((imageXAbsolute - imageXWhole) * toolSample);
+	int ySubpixel = round((imageYAbsolute - imageYWhole) * toolSample);
+	int toolReach = toolSize / 2 / toolSample;
 	int x, y;
-	int minX = MAX(imageXWhole - toolReach, 0);
-	int minY = MAX(imageYWhole - toolReach, 0);
+	int minX = imageXWhole - toolReach;
+	int minY = imageYWhole - toolReach;
 	int maxX = imageXWhole + toolReach; // exclusive because <
 	int maxY = imageYWhole + toolReach; // exclusive because <
 	if (maxX < 0 || minX > imageSize || maxY < 0 || minY > imageSize)
 		return;
 
-	USHORT xCounterStart = minX - (imageXWhole - toolReach);
-	USHORT yCounterStart = minY - (imageYWhole - toolReach);
-	USHORT xCounter, yCounter;
+	int xCounterStart = minX - (imageXWhole - toolReach);
+	int yCounterStart = minY - (imageYWhole - toolReach);
+	int xCounter, yCounter;
 	yCounter = yCounterStart;
 	for (y = minY; y < maxY; y++)
 	{
