@@ -49,14 +49,14 @@ void setPixel(USHORT x, USHORT y, ULONG brightness)
 }
 #pragma endregion
 
-USHORT sampleToolPixel(USHORT xCounter, USHORT yCounter, USHORT xSubpixel, USHORT ySubpixel)
+USHORT sampleToolPixel(USHORT toolDivisor, USHORT xCounter, USHORT yCounter, USHORT xSubpixel, USHORT ySubpixel)
 {
-	USHORT x = xCounter * toolSample - xSubpixel;
-	USHORT y = yCounter * toolSample - ySubpixel;
+	USHORT x = xCounter * toolDivisor - xSubpixel;
+	USHORT y = yCounter * toolDivisor - ySubpixel;
 	return getPixel(samplingTool, toolSize, x, y);
 }
 
-void cut(float imageXAbsolute, float imageYAbsolute)
+void cut(USHORT toolDivisor, float imageXAbsolute, float imageYAbsolute)
 {
 	/*
 	imageXAbsolute 1.23
@@ -71,14 +71,14 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 	maxX = 251 because of <
 	countX = 503 (*10=5030 so room to sample for 0.9 pixel more)
 	*/
-	imageXAbsolute += 1; // start 1 pixel SE of where you want
-	imageYAbsolute += 1; // start 1 pixel SE of where you want
+	imageXAbsolute++; // start 1 pixel SE of where you want
+	imageYAbsolute++; // start 1 pixel SE of where you want
 
 	int imageXWhole = imageXAbsolute;
 	int imageYWhole = imageYAbsolute;
-	int xSubpixel = round((imageXAbsolute - imageXWhole) * toolSample);
-	int ySubpixel = round((imageYAbsolute - imageYWhole) * toolSample);
-	int toolReach = toolSize / 2 / toolSample;
+	int xSubpixel = round((imageXAbsolute - imageXWhole) * toolDivisor);
+	int ySubpixel = round((imageYAbsolute - imageYWhole) * toolDivisor);
+	int toolReach = toolSize / 2 / toolDivisor;
 	int x, y;
 	int minX = imageXWhole - toolReach;
 	int minY = imageYWhole - toolReach;
@@ -99,7 +99,7 @@ void cut(float imageXAbsolute, float imageYAbsolute)
 			setPixel(
 				x,
 				y,
-				MIN(sampleToolPixel(xCounter, yCounter, xSubpixel, ySubpixel),
+				MIN(sampleToolPixel(toolDivisor, xCounter, yCounter, xSubpixel, ySubpixel),
 					getPixel(image, imageSize, x, y)));
 			xCounter++;
 		}

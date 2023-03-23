@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "types.h"
 #include "patterns.h"
@@ -60,7 +61,6 @@ void nonUi(int argc, char *argv[])
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x20449A;
 		toolSize           = 5040;
-		toolSample         = 420;
 		strcpy(tifFormatFile, "tools and templates\\1kx1kx1x16b.tif");
 	}
 	else if (strcmp(argv[10], "4k") == 0)
@@ -70,7 +70,6 @@ void nonUi(int argc, char *argv[])
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
 		toolSize           = 5040;
-		toolSample         = 420;
 		strcpy(tifFormatFile, "tools and templates\\4kx4kx1x16b.tif");
 	}
 	else
@@ -141,7 +140,10 @@ void stdioLoop()
 		for (char i = 0; i < argc; i++)
 			puts(argv[i]);
 
+		clock_t start = clock();
 		nonUi(argc, argv);
+		double clockTimeUsed = (double)(clock() - start) / CLOCKS_PER_SEC;
+		printf("\nTime passed: %.1f seconds.\n", clockTimeUsed);
 
 		printf("stdioLoop() repeat...\n");
 	}
