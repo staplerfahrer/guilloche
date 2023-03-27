@@ -83,7 +83,7 @@ void nonUi(int argc, char *argv[])
 
 	doThreadedWork(workerThread);
 
-	maximize();
+	// maximize();
 
 	finish();
 }

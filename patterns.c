@@ -11,18 +11,20 @@ void testDrawing(int threadId)
 	float x = 0;
 	float y = 0;
 	float copies = 1.42 * 2048;
-	float toolRadius = 126; // set it here because it depends on the intended drawing
-	for (float copy = 0; copy < copies; copy += 0.5)
+	float cutsPerCopy = 720;
+	float toolRadius = 0;
+	for (float copy = 0; copy < copies; copy += 1)
 	{
-		for (float circle = 0; circle < TWOPI; circle += PI / 360)
+		for (float circle = 0; circle < TWOPI; circle += TWOPI / cutsPerCopy)
 		{
+			if (cutCounter % 10000 == 0)
+				printf("%.3f %% reported by %i\n", 100 * copy / copies, threadId);
 			if (notMyJob(++cutCounter, threadId))
 				continue;
-			if (cutCounter % 10000 == 0)
-				printf("%.3f %%\n", 100 * copy / copies);
 			x = cos(circle) * copy + 2048;
 			y = sin(circle) * copy + 2048;
-			cut(10, x, y);
+			toolRadius = MAX(distance(x, y, 2048, 2048) * 4 / cutsPerCopy, 1);
+			cut(toolRadius, x, y);
 		}
 	}
 	printf("Total cuts: %i\n", cutCounter);
