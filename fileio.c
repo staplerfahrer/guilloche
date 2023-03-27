@@ -4,15 +4,6 @@
 #include "types.h"
 #include "drawing.h"
 
-void loadSamplingTool(char *name)
-{
-	printf("Loading sampling tool: %s\n", name);
-	FILE *ptr;
-	ptr = fopen(name, "rb");
-	fread(samplingTool, toolSize * toolSize * 2, 1, ptr); // W x H x 2 bytes per pixel
-	fclose(ptr);
-}
-
 void save(char *name, USHORT *img)
 {
 	// 2 bytes per pixel

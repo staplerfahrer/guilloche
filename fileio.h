@@ -10,7 +10,6 @@ USHORT imageHeaderSize;
 USHORT imageFooterSize;
 ULONG imageFooterAddress;
 
-void loadSamplingTool(char *name);
 void save(char *name, USHORT *img);
 void finish();
 

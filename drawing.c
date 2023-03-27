@@ -33,6 +33,11 @@ void maximize()
 	}
 }
 
+float distance(float x1, float y1, float x2, float y2)
+{
+	return sqrt(fabs(x2 - x1) * fabs(x2 - x1) + fabs(y2 - y1) * fabs(y2 - y1));
+}
+
 USHORT getPixel(USHORT *img, USHORT imgWidth, USHORT x, USHORT y)
 {
 	if (x >= imgWidth || y >= imgWidth)
@@ -49,61 +54,27 @@ void setPixel(USHORT x, USHORT y, ULONG brightness)
 }
 #pragma endregion
 
-USHORT sampleToolPixel(USHORT toolDivisor, USHORT xCounter, USHORT yCounter, USHORT xSubpixel, USHORT ySubpixel)
+void cut(float toolRadius, float imageXAbsolute, float imageYAbsolute)
 {
-	USHORT x = xCounter * toolDivisor - xSubpixel;
-	USHORT y = yCounter * toolDivisor - ySubpixel;
-	return getPixel(samplingTool, toolSize, x, y);
-}
-
-void cut(USHORT toolDivisor, float imageXAbsolute, float imageYAbsolute)
-{
-	/*
-	imageXAbsolute 1.23
-	imageYAbsolute 1.23
-	-> imageXWhole 1
-	-> imageYWhole 1
-	imageXFraction 0.23
-	imageYFraction 0.23
-	toolReach = 5040 / 2 = 2520 / 10 = 252
-	0 - 252 = -252
-	0 + 252 = 252
-	maxX = 251 because of <
-	countX = 503 (*10=5030 so room to sample for 0.9 pixel more)
-	*/
-	imageXAbsolute++; // start 1 pixel SE of where you want
-	imageYAbsolute++; // start 1 pixel SE of where you want
-
-	int imageXWhole = imageXAbsolute;
-	int imageYWhole = imageYAbsolute;
-	int xSubpixel = round((imageXAbsolute - imageXWhole) * toolDivisor);
-	int ySubpixel = round((imageYAbsolute - imageYWhole) * toolDivisor);
-	int toolReach = toolSize / 2 / toolDivisor;
 	int x, y;
-	int minX = imageXWhole - toolReach;
-	int minY = imageYWhole - toolReach;
-	int maxX = imageXWhole + toolReach; // exclusive because <
-	int maxY = imageYWhole + toolReach; // exclusive because <
+	int minX = imageXAbsolute - toolRadius;
+	int minY = imageYAbsolute - toolRadius;
+	int maxX = imageXAbsolute + toolRadius;
+	int maxY = imageYAbsolute + toolRadius;
 	if (maxX < 0 || minX > imageSize || maxY < 0 || minY > imageSize)
 		return;
 
-	int xCounterStart = minX - (imageXWhole - toolReach) + 1; // start at 1 and sample NW from there
-	int yCounterStart = minY - (imageYWhole - toolReach) + 1; // start at 1 and sample NW from there
-	int xCounter, yCounter;
-	yCounter = yCounterStart;
-	for (y = minY; y < maxY; y++)
+	for (y = minY; y <= maxY; y++)
 	{
-		xCounter = xCounterStart;
-		for (x = minX; x < maxX; x++)
+		for (x = minX; x <= maxX; x++)
 		{
 			setPixel(
 				x,
 				y,
-				MIN(sampleToolPixel(toolDivisor, xCounter, yCounter, xSubpixel, ySubpixel),
+				MIN(
+					distance(imageXAbsolute, imageYAbsolute, x, y) * 65535.0 / toolRadius, 
 					getPixel(image, imageSize, x, y)));
-			xCounter++;
 		}
-		yCounter++;
 	}
 }
 

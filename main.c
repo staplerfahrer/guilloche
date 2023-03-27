@@ -60,7 +60,6 @@ void nonUi(int argc, char *argv[])
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x20449A;
-		toolSize           = 5040;
 		strcpy(tifFormatFile, "tools and templates\\1kx1kx1x16b.tif");
 	}
 	else if (strcmp(argv[10], "4k") == 0)
@@ -69,7 +68,6 @@ void nonUi(int argc, char *argv[])
 		imageHeaderSize    = 0x449A;
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
-		toolSize           = 5040;
 		strcpy(tifFormatFile, "tools and templates\\4kx4kx1x16b.tif");
 	}
 	else
@@ -79,10 +77,6 @@ void nonUi(int argc, char *argv[])
 
 	// wiping and loading
 	wipe(image, imageSize * imageSize);
-	wipe(samplingTool, imageSize * imageSize);
-
-	// tool
-	loadSamplingTool("tools and templates\\cone_5040x5040_16b.raw");
 
 	// set the drawing algorithm
 	strcpy(algorithm, argv[11]);

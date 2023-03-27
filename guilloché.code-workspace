@@ -13,7 +13,8 @@
 			"time.h": "c",
 			"drawing.h": "c",
 			"threading.h": "c",
-			"types.h": "c"
+			"types.h": "c",
+			"windows.h": "c"
 		}
 	}
 }
