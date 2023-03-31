@@ -11,7 +11,7 @@ USHORT imageSize;
 void wipe(USHORT *img, ULONG elements);
 USHORT getPixel(USHORT *img, USHORT imgWidth, USHORT x, USHORT y);
 void setPixel(USHORT x, USHORT y, ULONG brightness);
-void cut(float toolRadius, float imageXAbsolute, float imageYAbsolute);
+void cut(float toolRadius, float toolDepth, float imageXAbsolute, float imageYAbsolute);
 void maximize();
 float distance(float x1, float y1, float x2, float y2);
 

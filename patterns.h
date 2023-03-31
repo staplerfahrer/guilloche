@@ -8,6 +8,9 @@
 
 char algorithm[256];
 
-void testDrawing(int threadId);
+float quadratic(float x, float a, float b, float c);
+void rays(int threadId);
+void circles(int threadId);
+void wavyCircles(int threadId);
 
 #endif

@@ -54,9 +54,27 @@ void setPixel(USHORT x, USHORT y, ULONG brightness)
 }
 #pragma endregion
 
-void cut(float toolRadius, float imageXAbsolute, float imageYAbsolute)
+void cut(float toolRadius, float toolDepth, float imageXAbsolute, float imageYAbsolute)
 {
 	int x, y;
+	
+	// if (toolRadius < 1)
+	// {
+	// 	x = imageXAbsolute;
+	// 	y = imageYAbsolute;
+	// 	setPixel(
+	// 		x,
+	// 		y,
+	// 		0x7FFF);
+	// 		// MIN(
+	// 		// 	rand() * (0xFFFF/RAND_MAX),
+	// 		// 	getPixel(image, imageSize, x, y)));
+	// 	return;
+	// }
+
+	toolRadius = MAX(toolRadius, 0.1);
+	toolDepth  = MAX(MIN(toolDepth, 1), 0);
+
 	int minX = imageXAbsolute - toolRadius;
 	int minY = imageYAbsolute - toolRadius;
 	int maxX = imageXAbsolute + toolRadius;
@@ -72,7 +90,7 @@ void cut(float toolRadius, float imageXAbsolute, float imageYAbsolute)
 				x,
 				y,
 				MIN(
-					distance(imageXAbsolute, imageYAbsolute, x, y) * 65535.0 / toolRadius, 
+					distance(imageXAbsolute, imageYAbsolute, x, y) * 65535.0 / toolRadius + (65535.0 * (1-toolDepth)), 
 					getPixel(image, imageSize, x, y)));
 		}
 	}

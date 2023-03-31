@@ -26,7 +26,8 @@ DWORD WINAPI workerThread(void *data)
 		;// customParameterDrawing(threadId);
 	else if (strcmp(algorithm, "sunburstAndCircles") == 0)
 		//sunburstAndCircles(threadId);
-		testDrawing(threadId);
+		//testDrawing(threadId);
+		wavyCircles(threadId);
 	else
 		printf("Unknown algorithm \"%s\"", algorithm);
 
@@ -69,6 +70,22 @@ void nonUi(int argc, char *argv[])
 		imageFooterSize    = 46;
 		imageFooterAddress = 0x200449A;
 		strcpy(tifFormatFile, "tools and templates\\4kx4kx1x16b.tif");
+	}
+	else if (strcmp(argv[10], "8k") == 0)
+	{
+		imageSize          = 8192;
+		imageHeaderSize    = 0x449A;
+		imageFooterSize    = 46;
+		imageFooterAddress = 0x800449A;
+		strcpy(tifFormatFile, "tools and templates\\8kx8kx1x16b.tif");
+	}
+	else if (strcmp(argv[10], "16k") == 0)
+	{
+		imageSize          = 16384;
+		imageHeaderSize    = 0x449C;
+		imageFooterSize    = 46;
+		imageFooterAddress = 0x2000449A;
+		strcpy(tifFormatFile, "tools and templates\\16kx16kx1x16b.tif");
 	}
 	else
 	{
