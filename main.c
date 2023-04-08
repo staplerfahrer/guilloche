@@ -48,22 +48,24 @@ DWORD WINAPI workerThread(void *data)
 
 void nonUi(int argc, char *argv[])
 {
-	if (argc < 12)
+	if (argc < 1)
 		return;
 
-	pSet.waves                = atof(argv[0]);
-	pSet.spiral               = atof(argv[1]);
-	pSet.depthA               = atof(argv[2]);
-	pSet.depthB               = atof(argv[3]);
-	pSet.wheel1SizeA          = atof(argv[4]);
-	pSet.wheel1SizeB          = atof(argv[5]);
-	pSet.wheelCenterOffset    = atof(argv[6]);
-	pSet.wheelCount           = atol(argv[7]);
-	pSet.teethDensityRelative = atof(argv[8]);
-	pSet.teethCountFixed      = atol(argv[9]);
+	int parameterIndex = 0;
+	pSet.waves                = atof(argv[parameterIndex++]);
+	pSet.spiral               = atof(argv[parameterIndex++]);
+	pSet.depthA               = atof(argv[parameterIndex++]);
+	pSet.depthB               = atof(argv[parameterIndex++]);
+	pSet.wheel1SizeA          = atof(argv[parameterIndex++]);
+	pSet.wheel1SizeB          = atof(argv[parameterIndex++]);
+	pSet.wheelCenterOffset    = atol(argv[parameterIndex++]);
+	pSet.wheelCount           = atof(argv[parameterIndex++]);
+	pSet.teethDensityRelative = atol(argv[parameterIndex++]);
+	pSet.teethCountFixed      = atol(argv[parameterIndex++]);
+	pSet.toolWidth            = atof(argv[parameterIndex++]);
 
 	// output resolution & downsampling
-	if      (strcmp(argv[10], "1k") == 0)
+	if      (strcmp(argv[parameterIndex], "1k") == 0)
 	{
 		imageSize          = 1024;
 		imageHeaderSize    = 0x449A;
@@ -71,7 +73,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x449A;
 		strcpy(tifFormatFile, "tools and templates\\1kx1kx1x16b.dat");
 	}
-	else if (strcmp(argv[10], "4k") == 0)
+	else if (strcmp(argv[parameterIndex], "4k") == 0)
 	{
 		imageSize          = 4096;
 		imageHeaderSize    = 0x449A;
@@ -79,7 +81,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x449A;
 		strcpy(tifFormatFile, "tools and templates\\4kx4kx1x16b.dat");
 	}
-	else if (strcmp(argv[10], "8k") == 0)
+	else if (strcmp(argv[parameterIndex], "8k") == 0)
 	{
 		imageSize          = 8192;
 		imageHeaderSize    = 0x449A;
@@ -87,7 +89,7 @@ void nonUi(int argc, char *argv[])
 		imageFooterAddress = 0x449A;
 		strcpy(tifFormatFile, "tools and templates\\8kx8kx1x16b.dat");
 	}
-	else if (strcmp(argv[10], "16k") == 0)
+	else if (strcmp(argv[parameterIndex], "16k") == 0)
 	{
 		imageSize          = 16384;
 		imageHeaderSize    = 0x449C;
@@ -99,12 +101,13 @@ void nonUi(int argc, char *argv[])
 	{
 		return;
 	}
+	parameterIndex++;
 
 	// wiping and loading
 	wipe(image, imageSize * imageSize);
 
 	// set the drawing algorithm
-	strcpy(algorithm, argv[11]);
+	strcpy(algorithm, argv[parameterIndex++]);
 
 	doThreadedWork(workerThread);
 

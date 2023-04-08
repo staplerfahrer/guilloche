@@ -8,6 +8,9 @@
 
 extern ParameterSet pSet;
 
+/*
+ax^2 + bx + c
+*/
 float quadratic(float x, float a, float b, float c)
 {
 	return a*x*x+b*x+c;
@@ -77,7 +80,7 @@ void wavyCircles(int threadId)
 	float wavesPerCircle = 48;
 	for (float radius = 0; radius < maxRadius; radius += 40)
 	{
-		toolDepth = quadratic(radius / maxRadius, 1, 0, 0.1); //ax2+bx+c
+		toolDepth = quadratic(radius / maxRadius, 1, 0, 0.1);
 		printf("Tool depth: %f", toolDepth);
 
 		cutsPerCopy = radius * TWOPI * 2;
@@ -99,19 +102,27 @@ void wavyCircles(int threadId)
 
 void slinky(int threadId)
 {
-	ULONG cutCounter  = 0;
-	float imageCenter = imageSize / 2;
-	float cutsPerA    = pSet.teethCountFixed;
-	float x, y;
-	for (float wheelA = 0; wheelA < TWOPI; wheelA += TWOPI / cutsPerA)
+	ULONG  cutCounter     = 0;
+	double halfImage      = imageSize / 2;
+	double maxRadius      = halfImage * 1.42;
+
+	double wheel1SizeA    = pSet.wheel1SizeA * halfImage;
+	double wheel1SizeB    = pSet.wheel1SizeB * halfImage;
+	double toolWidth      = pSet.toolWidth * halfImage;
+	ULONG  onePercent     = pSet.teethCountFixed;
+
+	double x, y, toolDepth, radius;
+	for (double wheelA = 0; wheelA < TWOPI; wheelA += TWOPI / pSet.teethCountFixed)
 	{
+		if (cutCounter * 100 % onePercent == 0)
+			printf("Thread %i %i %% done\n", threadId, (int)(wheelA * 100 / TWOPI));
 		if (notMyJob(++cutCounter, threadId))
 			continue;
-		x = imageCenter + cos(wheelA) * pSet.wheel1SizeA
-			+ cos(wheelA*pSet.wheelCount)*pSet.wheel1SizeB;
-		y = imageCenter + sin(wheelA) * pSet.wheel1SizeA
-			+ sin(wheelA*pSet.wheelCount)*pSet.wheel1SizeB;
-		cut(20, 1, x, y);
+		x = halfImage + cos(wheelA) * wheel1SizeA + cos(wheelA*pSet.wheelCount) * wheel1SizeB;
+		y = halfImage + sin(wheelA) * wheel1SizeA + sin(wheelA*pSet.wheelCount) * wheel1SizeB;
+		radius = distance(halfImage, halfImage, x, y);
+		toolDepth = quadratic(radius / maxRadius, pSet.depthA, 0, pSet.depthB);
+		cut(toolWidth, toolDepth, x, y);
 	}
 }
 
