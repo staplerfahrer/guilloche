@@ -10,6 +10,11 @@
 
 ParameterSet pSet;
 
+extern int threadCount;
+extern int threadNumber;
+extern int threadsStarted;
+extern int threadsStopped;
+
 DWORD WINAPI workerThread(void *data) 
 {
 	// https://stackoverflow.com/questions/1981459/using-threads
@@ -24,14 +29,17 @@ DWORD WINAPI workerThread(void *data)
 
 	if      (strcmp(algorithm, "customParameterDrawing") == 0)
 		;// customParameterDrawing(threadId);
-	else if (strcmp(algorithm, "sunburstAndCircles") == 0)
+	else if (strcmp(algorithm, "sunburstAndCircles")     == 0)
 		//sunburstAndCircles(threadId);
 		//testDrawing(threadId);
 		wavyCircles(threadId);
+	else if (strcmp(algorithm, "slinky")                 == 0)
+		slinky(threadId);
+	else if (strcmp(algorithm, "drawCone")               == 0)
+		drawCone(threadId);
 	else
 		printf("Unknown algorithm \"%s\"", algorithm);
 
-	// drawCone(threadId);
 
 	threadsStopped++;
 	printf("Stopped worker thread %i\n", threadId);
@@ -59,33 +67,33 @@ void nonUi(int argc, char *argv[])
 	{
 		imageSize          = 1024;
 		imageHeaderSize    = 0x449A;
-		imageFooterSize    = 46;
-		imageFooterAddress = 0x20449A;
-		strcpy(tifFormatFile, "tools and templates\\1kx1kx1x16b.tif");
+		imageFooterSize    = 0x2E;
+		imageFooterAddress = 0x449A;
+		strcpy(tifFormatFile, "tools and templates\\1kx1kx1x16b.dat");
 	}
 	else if (strcmp(argv[10], "4k") == 0)
 	{
 		imageSize          = 4096;
 		imageHeaderSize    = 0x449A;
-		imageFooterSize    = 46;
-		imageFooterAddress = 0x200449A;
-		strcpy(tifFormatFile, "tools and templates\\4kx4kx1x16b.tif");
+		imageFooterSize    = 0x2E;
+		imageFooterAddress = 0x449A;
+		strcpy(tifFormatFile, "tools and templates\\4kx4kx1x16b.dat");
 	}
 	else if (strcmp(argv[10], "8k") == 0)
 	{
 		imageSize          = 8192;
 		imageHeaderSize    = 0x449A;
-		imageFooterSize    = 46;
-		imageFooterAddress = 0x800449A;
-		strcpy(tifFormatFile, "tools and templates\\8kx8kx1x16b.tif");
+		imageFooterSize    = 0x2E;
+		imageFooterAddress = 0x449A;
+		strcpy(tifFormatFile, "tools and templates\\8kx8kx1x16b.dat");
 	}
 	else if (strcmp(argv[10], "16k") == 0)
 	{
 		imageSize          = 16384;
 		imageHeaderSize    = 0x449C;
 		imageFooterSize    = 46;
-		imageFooterAddress = 0x2000449A;
-		strcpy(tifFormatFile, "tools and templates\\16kx16kx1x16b.tif");
+		imageFooterAddress = 0x449C;
+		strcpy(tifFormatFile, "tools and templates\\16kx16kx1x16b.dat");
 	}
 	else
 	{

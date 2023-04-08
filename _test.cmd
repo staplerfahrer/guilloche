@@ -6,7 +6,7 @@ rem @echo off
 ::
 :::ok
 ::@echo on
-echo 0 0 0.875 0.125 0.9 0.0 0.4 72 0.1 0 8k sunburstAndCircles | guilloche.exe
+echo 0 0 0.875 0.125 1000 100 0.4 72 0 500 4k slinky | guilloche.exe
 
 :: :end
 

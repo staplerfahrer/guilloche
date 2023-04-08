@@ -12,5 +12,7 @@ float quadratic(float x, float a, float b, float c);
 void rays(int threadId);
 void circles(int threadId);
 void wavyCircles(int threadId);
+void slinky(int threadId);
+void drawCone(int threadId);
 
 #endif

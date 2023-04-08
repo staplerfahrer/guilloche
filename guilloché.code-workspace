@@ -14,7 +14,9 @@
 			"drawing.h": "c",
 			"threading.h": "c",
 			"types.h": "c",
-			"windows.h": "c"
+			"windows.h": "c",
+			"patterns.h": "c",
+			"fileio.h": "c"
 		}
 	}
 }

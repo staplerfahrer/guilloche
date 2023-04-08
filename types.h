@@ -3,9 +3,6 @@
 
 #include <windows.h>
 
-// #define USHORT unsigned short
-// #define ULONG unsigned long
-
 typedef struct
 {
 	float waves;
